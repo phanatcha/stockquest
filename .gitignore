@@ -25,6 +25,8 @@ lerna-debug.log*
 venv/
 env/
 ENV/
+.venv/
+.python-version
 .Python
 *.pyc
 __pycache__/
@@ -33,6 +35,8 @@ __pycache__/
 pip-log.txt
 pip-delete-this-directory.txt
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 
@@ -47,8 +51,8 @@ frontend/.vite/
 frontend/.next/
 
 # Backend (NestJS)
-backend-nestjs/dist/
-backend-nestjs/build/
+backend-fastapi/backend-nestjs/dist/
+backend-fastapi/backend-nestjs/build/
 
 # Backend (FastAPI)
 backend-fastapi/__pycache__/
@@ -75,7 +79,7 @@ backend-fastapi/*.pyc
 # Sublime Text
 *.sublime-project
 *.sublime-workspace
-``
+# (no extra editor artifacts)
 # Vim
 *.swp
 *.swo
