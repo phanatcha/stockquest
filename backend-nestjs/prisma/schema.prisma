@@ -1,0 +1,71 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  portfolios Portfolio[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model League {
+  id              String   @id @default(uuid())
+  name            String
+  startingCapital Float
+  endDate         DateTime
+  isPublic        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  portfolios      Portfolio[]
+}
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  userId      String
+  leagueId    String
+  cashBalance Float
+  user        User     @relation(fields: [userId], references: [id])
+  league      League   @relation(fields: [leagueId], references: [id])
+  holdings    Holding[]
+  orders      Order[]
+}
+
+model Holding {
+  id          String   @id @default(uuid())
+  portfolioId String
+  symbol      String
+  quantity    Int
+  avgPrice    Float
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  portfolioId String
+  symbol      String
+  quantity    Int
+  type        OrderType
+  price       Float
+  createdAt   DateTime @default(now())
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+}
+
+enum OrderType {
+  BUY
+  SELL
+}
