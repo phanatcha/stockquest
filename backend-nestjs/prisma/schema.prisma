@@ -4,24 +4,40 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  name      String
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  portfolios Portfolio[]
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  username            String   @unique
+  name                String
+  password            String
+  role                Role     @default(USER)
+  createdAt           DateTime @default(now())
+  onboardingCompleted Boolean  @default(false)
+  riskTolerance       String?
+  portfolios          Portfolio[]
+  riskProfile         RiskProfile?
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+model RiskProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  age           Int
+  goal          String
+  reactionDrop  String
+  horizon       String
+  riskTolerance String
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
 }
 
 model League {
