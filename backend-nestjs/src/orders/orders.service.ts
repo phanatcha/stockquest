@@ -3,6 +3,7 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { MarketStatusService } from './market-status.service';
+import { MarketService } from '../market/market.service';
 import { OrderType } from '@prisma/client';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class OrdersService {
     constructor(
         private prisma: PrismaService,
         private marketStatusService: MarketStatusService,
+        private marketService: MarketService,
     ) { }
 
     async create(userId: string, createOrderDto: CreateOrderDto) {
@@ -17,7 +19,11 @@ export class OrdersService {
             throw new BadRequestException('Market is closed');
         }
 
-        const { portfolioId, symbol, quantity, type, price } = createOrderDto;
+        const { portfolioId, symbol, quantity, type } = createOrderDto;
+
+        // Fetch real market price!
+        const quote = await this.marketService.getQuote(symbol);
+        const price = quote.price;
 
         // Verify portfolio ownership
         const portfolio = await this.prisma.portfolio.findUnique({
@@ -40,7 +46,7 @@ export class OrdersService {
             if (type === OrderType.BUY) {
                 const totalCost = price * quantity;
                 if (currentPortfolio.cashBalance < totalCost) {
-                    throw new BadRequestException('Insufficient cash balance');
+                    throw new BadRequestException(`Insufficient cash balance for estimated $${totalCost.toFixed(2)}`);
                 }
 
                 // Deduct cash

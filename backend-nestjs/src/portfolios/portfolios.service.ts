@@ -1,10 +1,14 @@
 
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MarketService } from '../market/market.service';
 
 @Injectable()
 export class PortfoliosService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private marketService: MarketService,
+    ) { }
 
     async findOne(id: string, userId: string) {
         const portfolio = await this.prisma.portfolio.findUnique({
@@ -26,10 +30,20 @@ export class PortfoliosService {
             throw new ForbiddenException('You can only access your own portfolio');
         }
 
-        const holdingsValue = portfolio.holdings.reduce((sum, h) => sum + (h.quantity * h.avgPrice), 0);
+        const symbols = portfolio.holdings.map(h => h.symbol);
+        const quotes = await this.marketService.getBatchQuotes(symbols);
+        const priceMap = new Map(quotes.map(q => [q.symbol, q.price]));
+
+        // Augment holdings with currentPrice
+        const augmentedHoldings = portfolio.holdings.map(h => {
+             const currentPrice = priceMap.get(h.symbol) || h.avgPrice;
+             return { ...h, currentPrice };
+        });
+
+        const holdingsValue = augmentedHoldings.reduce((sum, h) => sum + (h.quantity * h.currentPrice), 0);
         const totalValue = portfolio.cashBalance + holdingsValue;
 
-        return { ...portfolio, totalValue };
+        return { ...portfolio, holdings: augmentedHoldings, totalValue };
     }
 
     async findMine(userId: string, isLive: boolean) {
@@ -67,9 +81,18 @@ export class PortfoliosService {
             });
         }
 
-        const holdingsValue = portfolio.holdings.reduce((sum, h) => sum + (h.quantity * h.avgPrice), 0);
+        const symbols = portfolio.holdings.map(h => h.symbol);
+        const quotes = await this.marketService.getBatchQuotes(symbols);
+        const priceMap = new Map(quotes.map(q => [q.symbol, q.price]));
+
+        const augmentedHoldings = portfolio.holdings.map(h => {
+             const currentPrice = priceMap.get(h.symbol) || h.avgPrice;
+             return { ...h, currentPrice };
+        });
+
+        const holdingsValue = augmentedHoldings.reduce((sum, h) => sum + (h.quantity * h.currentPrice), 0);
         const totalValue = portfolio.cashBalance + holdingsValue;
 
-        return { ...portfolio, totalValue };
+        return { ...portfolio, holdings: augmentedHoldings, totalValue };
     }
 }

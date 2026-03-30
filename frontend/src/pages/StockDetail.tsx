@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity } from 'lucide-react';
+import { ArrowLeft, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 import { useMode } from '../context/ModeContext';
 
@@ -20,10 +20,48 @@ const StockDetail = () => {
   const [orderMode, setOrderMode] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState('market');
   const [shares, setShares] = useState('');
-  const [currentPrice] = useState(173.50); // MOCKED
-  const [chartData] = useState(() => generateData(currentPrice - 5, 60));
+  
+  // Real data state
+  const [currentPrice, setCurrentPrice] = useState<number>(0);
+  const [stockName, setStockName] = useState<string>('');
+  const [priceChange, setPriceChange] = useState<number>(0);
+  const [priceChangePct, setPriceChangePct] = useState<number>(0);
+  const [chartData, setChartData] = useState<any[]>([]);
+  
   const [portfolio, setPortfolio] = useState<any>(null);
   const [orderStatus, setOrderStatus] = useState('');
+  const [loadingMarket, setLoadingMarket] = useState(true);
+
+  useEffect(() => {
+    const fetchMarketData = async () => {
+       try {
+          const [quoteRes, histRes] = await Promise.all([
+             fetch(`http://localhost:3000/market/quote/${symbol}`),
+             fetch(`http://localhost:3000/market/history/${symbol}?interval=1d`)
+          ]);
+          
+          if (quoteRes.ok) {
+             const quote = await quoteRes.json();
+             setCurrentPrice(quote.price);
+             setStockName(quote.name || symbol);
+             setPriceChange(quote.change);
+             setPriceChangePct(quote.changePercent);
+          }
+          if (histRes.ok) {
+             const hist = await histRes.json();
+             setChartData(hist.map((point: any) => ({
+                 time: new Date(point.date).toLocaleDateString(),
+                 price: point.price
+             })));
+          }
+       } catch(e) {
+          console.error(e);
+       } finally {
+          setLoadingMarket(false);
+       }
+    };
+    fetchMarketData();
+  }, [symbol]);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
@@ -104,16 +142,20 @@ const StockDetail = () => {
                    {symbol?.charAt(0)}
                  </div>
                  <div>
-                   <h1 className="text-3xl font-black text-white tracking-widest">{symbol}</h1>
-                   <p className="text-zinc-500 font-bold -mt-1 tracking-wide">Apple Inc.</p>
+                   <h1 className="text-3xl font-black text-white tracking-widest">{stockName}</h1>
+                   <p className="text-zinc-500 font-bold -mt-1 tracking-wide">{symbol}</p>
                  </div>
                </div>
                
                <div className="text-right">
-                 <h2 className="text-4xl font-black text-white">${currentPrice.toFixed(2)}</h2>
-                 <p className="text-green-500 font-bold tracking-widest text-sm flex items-center justify-end gap-1">
-                   +1.25 (0.73%) <Activity className="w-4 h-4" />
-                 </p>
+                 <h2 className="text-4xl font-black text-white">
+                   {loadingMarket ? 'Loading...' : `$${currentPrice.toFixed(2)}`}
+                 </h2>
+                 {!loadingMarket && (
+                   <p className={`${priceChange >= 0 ? 'text-[#00a859]' : 'text-red-500'} font-bold tracking-widest text-sm flex items-center justify-end gap-1`}>
+                     {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)} ({priceChangePct.toFixed(2)}%) <Activity className="w-4 h-4" />
+                   </p>
+                 )}
                </div>
              </div>
 
@@ -239,7 +281,7 @@ const StockDetail = () => {
 
                     <button 
                       type="submit" 
-                      disabled={!shares || Number(shares) <= 0 || !portfolio}
+                      disabled={!shares || Number(shares) <= 0 || !portfolio || loadingMarket}
                       style={{ backgroundColor: orderMode === 'buy' ? accentColor : '#e11d48' }}
                       className={`w-full py-4 rounded-lg font-black text-lg tracking-widest uppercase shadow-xl transition-all disabled:opacity-50 text-white`}
                     >

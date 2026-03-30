@@ -1,21 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Clock, MoveUpRight, ArrowRight } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  // Mock Market Data
-  const [stocks] = useState([
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 173.50, change: 1.25, percent: 0.73, isUp: true },
-    { symbol: 'MSFT', name: 'Microsoft Corp.', price: 415.20, change: 3.10, percent: 0.75, isUp: true },
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 890.05, change: -12.40, percent: -1.37, isUp: false },
-    { symbol: 'TSLA', name: 'Tesla, Inc.', price: 175.22, change: -4.50, percent: -2.50, isUp: false },
-    { symbol: 'AMZN', name: 'Amazon.com', price: 180.30, change: 2.15, percent: 1.21, isUp: true },
-    { symbol: 'META', name: 'Meta Platforms', price: 505.40, change: 8.90, percent: 1.79, isUp: true },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 154.20, change: 0.45, percent: 0.29, isUp: true },
-    { symbol: 'NFLX', name: 'Netflix', price: 620.10, change: -5.30, percent: -0.85, isUp: false },
-  ]);
+  const [stocks, setStocks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMarketOverview = async () => {
+      try {
+         const symbols = 'AAPL,MSFT,NVDA,TSLA,AMZN,META,GOOGL,NFLX';
+         const res = await fetch(`http://localhost:3000/market/batch?symbols=${symbols}`);
+         if (res.ok) {
+            const data = await res.json();
+            const mapped = data.map((d: any) => ({
+               symbol: d.symbol,
+               name: d.name,
+               price: d.price,
+               change: d.change,
+               percent: d.changePercent,
+               isUp: d.changePercent >= 0
+            }));
+            setStocks(mapped);
+         }
+      } catch (err) {
+         console.error('Failed to fetch market overview', err);
+      } finally {
+         setLoading(false);
+      }
+    };
+    fetchMarketOverview();
+  }, []);
+
+  const topMovers = [...stocks].sort((a, b) => b.percent - a.percent).slice(0, 3);
 
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
@@ -45,7 +64,9 @@ const Dashboard = () => {
           </div>
 
           <div className="flex flex-col">
-            {stocks.map((stock) => (
+            {loading ? (
+              <div className="p-8 text-center text-zinc-500 animate-pulse">Loading live market data...</div>
+            ) : stocks.map((stock) => (
               <div 
                 key={stock.symbol}
                 onClick={() => navigate(`/stock/${stock.symbol}`)}
@@ -68,19 +89,19 @@ const Dashboard = () => {
                 </div>
 
                 {/* Change */}
-                <div className={`text-right font-bold text-sm ${stock.isUp ? 'text-green-500' : 'text-red-500'} flex items-center justify-end gap-1`}>
-                  {stock.isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                  {stock.isUp ? '+' : ''}{stock.percent.toFixed(2)}%
-                </div>
+                  <div className={`text-right font-bold text-sm ${stock.isUp ? 'text-[#00a859]' : 'text-red-500'} flex items-center justify-end gap-1`}>
+                    {stock.isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {stock.isUp ? '+' : ''}{stock.percent.toFixed(2)}%
+                  </div>
 
-                {/* Detail Button */}
-                <div className="hidden md:flex justify-end">
-                   <button className="text-zinc-500 group-hover:text-white transition-colors p-2 bg-zinc-800/0 group-hover:bg-zinc-700 rounded-full">
-                     <ArrowRight className="w-4 h-4" />
-                   </button>
+                  {/* Detail Button */}
+                  <div className="hidden md:flex justify-end">
+                     <button className="text-zinc-500 group-hover:text-white transition-colors p-2 bg-zinc-800/0 group-hover:bg-zinc-700 rounded-full">
+                       <ArrowRight className="w-4 h-4" />
+                     </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
@@ -93,7 +114,9 @@ const Dashboard = () => {
               <MoveUpRight className="w-4 h-4 text-green-500"/> Top Movers
             </h3>
             <div className="flex flex-col gap-4">
-               {[stocks[5], stocks[1], stocks[0]].map((t, idx) => (
+               {loading ? (
+                  <div className="text-center text-xs text-zinc-500 py-4">Scanning market...</div>
+               ) : topMovers.map((t, idx) => (
                  <div key={idx} className="flex justify-between items-center cursor-pointer hover:bg-zinc-800/30 p-2 -mx-2 rounded-lg" onClick={() => navigate(`/stock/${t.symbol}`)}>
                     <div className="flex items-center gap-3">
                        <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 border border-zinc-700">
@@ -101,10 +124,10 @@ const Dashboard = () => {
                        </div>
                        <div className="flex flex-col leading-tight">
                           <span className="font-bold text-sm">{t.symbol}</span>
-                          <span className="text-xs text-zinc-500">{t.name}</span>
+                          <span className="text-xs text-zinc-500 truncate max-w-[100px]">{t.name}</span>
                        </div>
                     </div>
-                    <span className="text-green-500 font-bold text-sm">+{t.percent.toFixed(2)}%</span>
+                    <span className="text-[#00a859] font-bold text-sm">+{t.percent.toFixed(2)}%</span>
                  </div>
                ))}
             </div>
