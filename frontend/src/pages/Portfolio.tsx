@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, Briefcase } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useMode } from '../context/ModeContext';
 
 const stockCatalog: Record<string, { currentPrice: number, color: string }> = {
   'AAPL': { currentPrice: 173.50, color: '#f87171' },
@@ -13,6 +14,7 @@ const stockCatalog: Record<string, { currentPrice: number, color: string }> = {
 
 const Portfolio = () => {
   const navigate = useNavigate();
+  const { isLiveMarket, accentColor } = useMode();
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +27,7 @@ const Portfolio = () => {
           return;
         }
         
-        const res = await fetch('http://localhost:3000/portfolios/mine', {
+        const res = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -40,7 +42,7 @@ const Portfolio = () => {
       }
     };
     fetchPortfolio();
-  }, [navigate]);
+  }, [navigate, isLiveMarket]);
 
   if (loading || !portfolio) {
     return <div className="p-8 text-center text-zinc-400">Loading Portfolio...</div>;
@@ -71,7 +73,7 @@ const Portfolio = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-zinc-800 pb-4 mb-2">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-             <Briefcase className="w-8 h-8 text-red-600" /> My Portfolio
+             <Briefcase className="w-8 h-8" style={{ color: accentColor }} /> {isLiveMarket ? 'Live Portfolio' : 'Simulation'}
           </h1>
           <p className="text-zinc-400 text-sm mt-1">Track your performance and holdings.</p>
         </div>
@@ -87,7 +89,7 @@ const Portfolio = () => {
             <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">Total Value</h3>
             <div className="flex items-end gap-4 mb-6">
                <span className="text-5xl font-black text-white">${totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-               <div className={`flex items-center gap-1 font-bold text-lg mb-1 ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+               <div className="flex items-center gap-1 font-bold text-lg mb-1" style={{ color: totalReturn >= 0 ? accentColor : '#ef4444' }}>
                  {totalReturn >= 0 ? <ArrowUpRight className="w-5 h-5"/> : <ArrowDownRight className="w-5 h-5"/>}
                  ${Math.abs(totalReturn).toFixed(2)}
                </div>
@@ -96,7 +98,7 @@ const Portfolio = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-6 border-t border-zinc-800">
                <div>
                   <h4 className="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-1">Total Return</h4>
-                  <span className={`text-xl font-bold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <span className="text-xl font-bold" style={{ color: totalReturn >= 0 ? accentColor : '#ef4444' }}>
                     {totalReturn >= 0 ? '+' : ''}{((totalReturn / (totalValue - totalReturn)) * 100).toFixed(2)}%
                   </span>
                </div>

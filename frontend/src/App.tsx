@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ModeProvider } from './context/ModeContext';
 import Login from './pages/Login';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
@@ -13,9 +14,10 @@ import StockDetail from './pages/StockDetail';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-[#111] text-white selection:bg-red-500/30 font-sans">
-        <Routes>
-          <Route path="/" element={<Login />} />
+      <ModeProvider>
+        <div className="min-h-screen bg-[#111] text-white selection:bg-red-500/30 font-sans">
+          <Routes>
+            <Route path="/" element={<Login />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/onboarding" element={<Onboarding />} />
@@ -37,6 +39,7 @@ function App() {
           } />
         </Routes>
       </div>
+      </ModeProvider>
     </Router>
   );
 }

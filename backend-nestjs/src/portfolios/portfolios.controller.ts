@@ -1,5 +1,5 @@
 
-import { Controller, Get, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { PortfoliosService } from './portfolios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -9,8 +9,8 @@ export class PortfoliosController {
 
     @Get('mine')
     @UseGuards(JwtAuthGuard)
-    findMine(@Request() req) {
-        return this.portfoliosService.findMine(req.user.userId);
+    findMine(@Request() req, @Query('live') live: string) {
+        return this.portfoliosService.findMine(req.user.userId, live === 'true');
     }
 
     @Get(':id')

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
+import { useMode } from '../context/ModeContext';
 
 // Mock data generator for chart
 const generateData = (startPrice: number, points: number) => {
@@ -15,6 +16,7 @@ const generateData = (startPrice: number, points: number) => {
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
+  const { isLiveMarket, accentColor } = useMode();
   const [orderMode, setOrderMode] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState('market');
   const [shares, setShares] = useState('');
@@ -27,14 +29,14 @@ const StockDetail = () => {
     const fetchPortfolio = async () => {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await fetch('http://localhost:3000/portfolios/mine', {
+        const res = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setPortfolio(await res.json());
       }
     };
     fetchPortfolio();
-  }, []);
+  }, [isLiveMarket]);
   
   const estimatedCost = (parseFloat(shares || '0') * currentPrice).toFixed(2);
 
@@ -72,7 +74,7 @@ const StockDetail = () => {
       setShares('');
       
       // refresh portfolio cash
-      const refresh = await fetch('http://localhost:3000/portfolios/mine', {
+      const refresh = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (refresh.ok) setPortfolio(await refresh.json());
@@ -238,9 +240,8 @@ const StockDetail = () => {
                     <button 
                       type="submit" 
                       disabled={!shares || Number(shares) <= 0 || !portfolio}
-                      className={`w-full py-4 rounded-lg font-black text-lg tracking-widest uppercase shadow-xl transition-all disabled:opacity-50
-                        ${orderMode === 'buy' ? 'bg-[#00a859] hover:bg-[#008f4c] text-white' : 'bg-red-600 hover:bg-red-500 text-white'}
-                      `}
+                      style={{ backgroundColor: orderMode === 'buy' ? accentColor : '#e11d48' }}
+                      className={`w-full py-4 rounded-lg font-black text-lg tracking-widest uppercase shadow-xl transition-all disabled:opacity-50 text-white`}
                     >
                       Review Order
                     </button>

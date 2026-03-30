@@ -32,23 +32,25 @@ export class PortfoliosService {
         return { ...portfolio, totalValue };
     }
 
-    async findMine(userId: string) {
+    async findMine(userId: string, isLive: boolean) {
+        const leagueName = isLive ? 'Live Market Global' : 'The Bull Run Global';
+        
         let portfolio = await this.prisma.portfolio.findFirst({
-            where: { userId },
+            where: { userId, league: { name: leagueName } },
             include: { holdings: true, league: true, user: { select: { username: true, name: true } } }
         });
 
-        // Auto-create global league and portfolio if none exists
+        // Auto-create league and portfolio if none exists
         if (!portfolio) {
-            let globalLeague = await this.prisma.league.findFirst({
-                where: { name: 'The Bull Run Global' }
+            let targetLeague = await this.prisma.league.findFirst({
+                where: { name: leagueName }
             });
 
-            if (!globalLeague) {
-                globalLeague = await this.prisma.league.create({
+            if (!targetLeague) {
+                targetLeague = await this.prisma.league.create({
                     data: {
-                        name: 'The Bull Run Global',
-                        startingCapital: 100000,
+                        name: leagueName,
+                        startingCapital: isLive ? 10000 : 100000, // Live starts with 10k real money mock, sim 100k
                         endDate: new Date('2030-12-31T23:59:59.000Z'),
                         isPublic: true
                     }
@@ -58,8 +60,8 @@ export class PortfoliosService {
             portfolio = await this.prisma.portfolio.create({
                 data: {
                     userId,
-                    leagueId: globalLeague.id,
-                    cashBalance: globalLeague.startingCapital
+                    leagueId: targetLeague.id,
+                    cashBalance: targetLeague.startingCapital
                 },
                 include: { holdings: true, league: true, user: { select: { username: true, name: true } } }
             });
