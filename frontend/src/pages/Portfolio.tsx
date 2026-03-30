@@ -1,22 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const stockCatalog: Record<string, { currentPrice: number, color: string }> = {
+  'AAPL': { currentPrice: 173.50, color: '#f87171' },
+  'MSFT': { currentPrice: 415.20, color: '#60a5fa' },
+  'NVDA': { currentPrice: 890.05, color: '#4ade80' },
+  'TSLA': { currentPrice: 175.22, color: '#c084fc' },
+  'AMZN': { currentPrice: 180.30, color: '#facc15' },
+};
 
 const Portfolio = () => {
-  const [holdings] = useState([
-    { symbol: 'AAPL', shares: 50, avgPrice: 150.20, currentPrice: 173.50, color: '#f87171' },
-    { symbol: 'MSFT', shares: 30, avgPrice: 380.12, currentPrice: 415.20, color: '#60a5fa' },
-    { symbol: 'NVDA', shares: 10, avgPrice: 800.00, currentPrice: 890.05, color: '#4ade80' },
-  ]);
+  const navigate = useNavigate();
+  const [portfolio, setPortfolio] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const cash = 100000 - 32515.60;
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/');
+          return;
+        }
+        
+        const res = await fetch('http://localhost:3000/portfolios/mine', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setPortfolio(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch portfolio:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPortfolio();
+  }, [navigate]);
+
+  if (loading || !portfolio) {
+    return <div className="p-8 text-center text-zinc-400">Loading Portfolio...</div>;
+  }
+
+  const holdings = portfolio.holdings.map((h: any) => {
+     const catalog = stockCatalog[h.symbol] || { currentPrice: h.avgPrice, color: '#cbd5e1' };
+     return {
+       ...h,
+       currentPrice: catalog.currentPrice,
+       color: catalog.color
+     };
+  });
+
+  const cash = portfolio.cashBalance;
   
-  const totalValue = holdings.reduce((sum, h) => sum + (h.shares * h.currentPrice), cash);
-  const totalReturn = holdings.reduce((sum, h) => sum + (h.shares * (h.currentPrice - h.avgPrice)), 0);
+  const totalValue = holdings.reduce((sum: number, h: any) => sum + (h.quantity * h.currentPrice), cash);
+  const totalReturn = holdings.reduce((sum: number, h: any) => sum + (h.quantity * (h.currentPrice - h.avgPrice)), 0);
 
   const pieData = [
     { name: 'Cash', value: cash, color: '#52525b' },
-    ...holdings.map(h => ({ name: h.symbol, value: h.shares * h.currentPrice, color: h.color }))
+    ...holdings.map((h: any) => ({ name: h.symbol, value: h.quantity * h.currentPrice, color: h.color }))
   ];
 
   return (
@@ -115,10 +161,10 @@ const Portfolio = () => {
             <div className="hidden md:block text-right">Return</div>
          </div>
 
-         {holdings.map(h => {
-           const val = h.shares * h.currentPrice;
-           const ret = val - (h.shares * h.avgPrice);
-           const pct = (ret / (h.shares * h.avgPrice)) * 100;
+         {holdings.map((h: any) => {
+           const val = h.quantity * h.currentPrice;
+           const ret = val - (h.quantity * h.avgPrice);
+           const pct = (ret / (h.quantity * h.avgPrice)) * 100 || 0;
 
            return (
              <div key={h.symbol} className="grid grid-cols-4 md:grid-cols-6 gap-4 p-4 items-center border-b last:border-0 border-zinc-800/50 hover:bg-zinc-800/50 transition-colors">
@@ -129,7 +175,7 @@ const Portfolio = () => {
                    <span className="font-bold text-white tracking-wide">{h.symbol}</span>
                 </div>
                 
-                <div className="text-right font-medium text-zinc-300">{h.shares}</div>
+                <div className="text-right font-medium text-zinc-300">{h.quantity}</div>
                 <div className="hidden md:block text-right font-medium text-zinc-500">${h.avgPrice.toFixed(2)}</div>
                 <div className="text-right font-medium text-white">${h.currentPrice.toFixed(2)}</div>
                 

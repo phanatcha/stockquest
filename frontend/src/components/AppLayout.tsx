@@ -15,13 +15,20 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-[#111111] text-white font-sans flex flex-col">
       {/* Top Navbar */}
-      <header className="h-16 bg-[#1a1a1a] border-b-2 border-red-600 flex items-center justify-between px-6 sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-           {/* Logo */}
-           <svg viewBox="0 0 100 100" className="w-8 h-8 fill-red-600">
-              <path d="M82,20 C85,30 85,45 78,55 C80,60 85,65 85,73 C85,82 78,90 65,90 C55,90 45,95 35,95 C25,95 15,85 15,70 C15,60 18,50 25,45 C20,40 18,30 20,20 C30,22 40,30 45,35 C55,30 65,30 70,25 C75,22 78,20 82,20 Z" />
-           </svg>
-           <span className="font-black tracking-widest text-lg">STOCKQUEST</span>
+      <header className="h-16 bg-[#00a859] flex items-center justify-between px-6 sticky top-0 z-50 shadow-md">
+        <div className="flex items-center gap-4">
+           {/* Logo Box */}
+           <div className="w-10 h-10 bg-red-600 rounded flex items-center justify-center font-black text-white text-xl shadow-lg border-2 border-red-700">
+              M
+           </div>
+           
+           <div className="flex items-center gap-3">
+             <span className="font-black tracking-widest text-lg text-white">LIVE MARKET</span>
+             {/* Toggle Switch */}
+             <div className="w-12 h-6 bg-green-800 rounded-full p-1 cursor-pointer flex items-center justify-end shadow-inner border border-green-700">
+                <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
+             </div>
+           </div>
         </div>
 
         {/* Search Bar */}
@@ -30,26 +37,26 @@ const AppLayout = () => {
             <input 
                type="text" 
                placeholder="Search symbols, users, leagues..." 
-               className="w-full bg-[#2a2a2a] text-white rounded-full py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-red-600 border border-transparent focus:border-red-600 transition-all"
+               className="w-full bg-green-700/50 text-white placeholder-green-200 rounded-full py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-white border border-transparent transition-all"
             />
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-green-200" />
           </div>
         </div>
 
         {/* Right Icons */}
         <div className="flex items-center gap-6">
            <div className="flex flex-col items-end hidden sm:flex">
-             <span className="text-xs text-green-500 font-bold tracking-widest">MARKET OPEN</span>
-             <span className="text-[10px] text-gray-400">Closes in 3h 42m</span>
+             <span className="text-xs text-white font-black tracking-widest">MARKET OPEN</span>
+             <span className="text-[10px] text-green-200 font-bold">Closes in 3h 42m</span>
            </div>
            
-           <button className="relative text-gray-300 hover:text-white transition-colors">
+           <button className="relative text-green-100 hover:text-white transition-colors">
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full"></span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full border border-[#00a859]"></span>
            </button>
            
-           <button className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-600 hover:border-gray-400 transition-colors">
-              <User className="w-4 h-4 text-gray-300" />
+           <button className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors border border-green-500">
+              <User className="w-4 h-4 text-white" />
            </button>
         </div>
       </header>
@@ -67,11 +74,11 @@ const AppLayout = () => {
                    to={item.path}
                    className={`flex items-center gap-4 px-3 md:px-4 py-3 rounded-xl transition-all ${
                      isActive 
-                       ? 'bg-red-600/10 text-red-500 font-bold' 
+                       ? 'bg-[#00a859]/10 text-[#00a859] font-bold' 
                        : 'text-gray-400 hover:bg-[#2a2a2a] hover:text-white font-medium'
                    }`}
                  >
-                   <Icon className={`w-5 h-5 ${isActive ? 'text-red-500' : ''}`} />
+                   <Icon className={`w-5 h-5 ${isActive ? 'text-[#00a859]' : ''}`} />
                    <span className="hidden md:block tracking-wide text-sm">{item.name}</span>
                  </Link>
                )
@@ -98,7 +105,7 @@ const AppLayout = () => {
            const Icon = item.icon;
            const isActive = location.pathname === item.path;
            return (
-             <Link key={item.name} to={item.path} className={`flex flex-col items-center gap-1 ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
+             <Link key={item.name} to={item.path} className={`flex flex-col items-center gap-1 ${isActive ? 'text-[#00a859]' : 'text-gray-400'}`}>
                 <Icon className="w-5 h-5" />
                 <span className="text-[10px]">{item.name}</span>
              </Link>

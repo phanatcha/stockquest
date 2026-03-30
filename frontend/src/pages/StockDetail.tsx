@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
@@ -20,12 +20,66 @@ const StockDetail = () => {
   const [shares, setShares] = useState('');
   const [currentPrice] = useState(173.50); // MOCKED
   const [chartData] = useState(() => generateData(currentPrice - 5, 60));
+  const [portfolio, setPortfolio] = useState<any>(null);
+  const [orderStatus, setOrderStatus] = useState('');
+
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const res = await fetch('http://localhost:3000/portfolios/mine', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) setPortfolio(await res.json());
+      }
+    };
+    fetchPortfolio();
+  }, []);
   
   const estimatedCost = (parseFloat(shares || '0') * currentPrice).toFixed(2);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(`Order submitted: ${orderMode.toUpperCase()} ${shares} shares of ${symbol} at Market Price.`);
+    setOrderStatus('');
+    if (!portfolio) {
+      setOrderStatus('Wait for portfolio to load');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3000/orders', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          portfolioId: portfolio.id,
+          symbol,
+          quantity: Number(shares),
+          type: orderMode.toUpperCase(),
+          price: currentPrice
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to place order');
+      }
+
+      setOrderStatus(`Success! ${orderMode.toUpperCase()} order executed.`);
+      setShares('');
+      
+      // refresh portfolio cash
+      const refresh = await fetch('http://localhost:3000/portfolios/mine', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (refresh.ok) setPortfolio(await refresh.json());
+      
+    } catch (err: any) {
+      setOrderStatus('Error: ' + err.message);
+    }
   };
 
   return (
@@ -176,18 +230,25 @@ const StockDetail = () => {
                     </div>
 
                     <p className="text-xs text-zinc-500 text-center font-medium mt-2 mb-2">
-                      Available Buying Power: <strong className="text-zinc-300">$100,000.00</strong>
+                      Available Buying Power: <strong className="text-zinc-300">
+                        {portfolio ? `$${portfolio.cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Loading...'}
+                      </strong>
                     </p>
 
                     <button 
                       type="submit" 
-                      disabled={!shares || Number(shares) <= 0}
+                      disabled={!shares || Number(shares) <= 0 || !portfolio}
                       className={`w-full py-4 rounded-lg font-black text-lg tracking-widest uppercase shadow-xl transition-all disabled:opacity-50
-                        ${orderMode === 'buy' ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-red-600 hover:bg-red-500 text-white'}
+                        ${orderMode === 'buy' ? 'bg-[#00a859] hover:bg-[#008f4c] text-white' : 'bg-red-600 hover:bg-red-500 text-white'}
                       `}
                     >
                       Review Order
                     </button>
+                    {orderStatus && (
+                      <div className={`mt-2 text-center text-sm font-bold ${orderStatus.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>
+                        {orderStatus}
+                      </div>
+                    )}
                  </form>
               </div>
            </div>

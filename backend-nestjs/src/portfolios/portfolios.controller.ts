@@ -7,6 +7,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class PortfoliosController {
     constructor(private readonly portfoliosService: PortfoliosService) { }
 
+    @Get('mine')
+    @UseGuards(JwtAuthGuard)
+    findMine(@Request() req) {
+        return this.portfoliosService.findMine(req.user.userId);
+    }
+
     @Get(':id')
     @UseGuards(JwtAuthGuard)
     findOne(@Param('id') id: string, @Request() req) {
