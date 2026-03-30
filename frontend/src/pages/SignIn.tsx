@@ -26,7 +26,7 @@ const SignIn = () => {
 
       const data = await res.json();
       localStorage.setItem('token', data.access_token);
-      navigate('/onboarding');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     } finally {
