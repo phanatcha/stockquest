@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { MarketModule } from './market/market.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MarketModule } from './market/market.module';
     PrismaModule,
     AuthModule,
     MarketModule,
+    AdminModule,
     LeaguesModule,
     PortfoliosModule,
     OrdersModule,

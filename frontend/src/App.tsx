@@ -10,6 +10,7 @@ import Portfolio from './pages/Portfolio';
 import Leaderboard from './pages/Leaderboard';
 import Learn from './pages/Learn';
 import StockDetail from './pages/StockDetail';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   return (
@@ -17,10 +18,11 @@ function App() {
       <ModeProvider>
         <div className="min-h-screen bg-[#111] text-white selection:bg-red-500/30 font-sans">
           <Routes>
-            <Route path="/" element={<Login />} />
+          <Route path="/" element={<Login />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           
           {/* Core App Shell */}
           <Route element={<AppLayout />}>
