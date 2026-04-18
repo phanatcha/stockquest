@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import sirBullImg from '../assets/sirbull.png';
+import sirMadamImg from '../assets/sirmadam.png';
+import unionIcon from '../assets/Union.png';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -63,10 +66,7 @@ const SignUp = () => {
           {/* Header of Card */}
           <div className="flex justify-between items-start z-10 w-full mb-10">
             <div className="flex items-center gap-3">
-              <svg viewBox="0 0 100 100" className="w-10 h-10 fill-[#513025] opacity-80">
-                <path d="M82,20 C85,30 85,45 78,55 C80,60 85,65 85,73 C85,82 78,90 65,90 C55,90 45,95 35,95 C25,95 15,85 15,70 C15,60 18,50 25,45 C20,40 18,30 20,20 C30,22 40,30 45,35 C55,30 65,30 70,25 C75,22 78,20 82,20 Z" />
-                <text x="50" y="55" fontFamily="Arial" fontWeight="bold" fontSize="30" fill="#ae8172" textAnchor="middle">$</text>
-              </svg>
+              <img src={unionIcon} alt="Icon" className="w-10 h-10 object-contain opacity-80" />
               <h1 className="text-2xl sm:text-3xl font-black text-[#432319] tracking-wider uppercase">Sign Up</h1>
             </div>
             <div className="text-[#432319] font-bold text-lg tracking-wide hidden sm:block">
@@ -78,13 +78,11 @@ const SignUp = () => {
             {/* Avatar & Switch Column */}
             <div className="flex flex-col items-center mr-0 sm:mr-12 mb-8 sm:mb-0 relative sm:top-4">
               <div className="w-32 h-32 sm:w-40 sm:h-40 shrink-0 mb-6 relative">
-                <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M30 40 Q25 50 30 70 Q45 80 65 75 Q75 60 70 40 Q50 35 30 40 Z" fill="#4a2a18"/>
-                  <path d="M25 35 L30 15 M35 30 L45 10 M50 25 L65 10 M65 25 L80 15 M70 35 L85 25" stroke="#4a2a18" strokeWidth="4" strokeLinecap="round"/>
-                  <path d="M35 55 L45 58 L55 55" fill="none" stroke="#2a1810" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M30 45 L50 48 L45 55 Z M55 46 L75 42 L65 52 Z" fill="#3b4dff"/>
-                  <rect x="58" y="65" width="12" height="6" rx="2" fill="#d9bba0" transform="rotate(-15 58 65)"/>
-                </svg>
+                <img 
+                  src={honorific === 'Sir' ? sirBullImg : sirMadamImg} 
+                  alt={`${honorific} Avatar`} 
+                  className="w-full h-full object-contain drop-shadow-xl"
+                />
               </div>
               
               {/* Honorific Switch */}

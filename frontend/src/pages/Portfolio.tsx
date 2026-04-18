@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, ChevronDown, Shield, Trophy, Flame, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMode } from '../context/ModeContext';
+import sirBullImg from '../assets/sirbull.png';
+import sirMadamImg from '../assets/sirmadam.png';
 
 const Portfolio = () => {
   const navigate = useNavigate();
@@ -9,6 +11,7 @@ const Portfolio = () => {
   const [loading, setLoading] = useState(true);
   const [portfolio, setPortfolio] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'holdings' | 'activity'>('activity');
+  const [honorific, setHonorific] = useState<'Sir' | 'Madam'>('Sir');
 
   // Fetch real portfolio to support Holdings tab, even if we hardcode Activity
   useEffect(() => {
@@ -69,18 +72,31 @@ const Portfolio = () => {
            {/* Left Avatar & Toggle */}
            <div className="flex flex-col items-center ml-10">
               <div className="w-48 h-48 relative mb-8">
-                 {/* Mocking the user's spikey avatar */}
-                 <div className="absolute inset-0 bg-[#452718] rounded-[2rem] transform rotate-3 shadow-inner overflow-hidden border-8 border-transparent">
-                    {/* Simulated spikes & glasses */}
-                    <div className="absolute top-0 w-full h-10 bg-[#2d1a10] transform -translate-y-4 rotate-12" style={{ clipPath: 'polygon(0 100%, 10% 0, 20% 100%, 30% 0, 40% 100%, 50% 0, 60% 100%, 70% 0, 80% 100%, 90% 0, 100% 100%)'}}></div>
-                    <div className="absolute top-1/3 left-1/4 w-1/2 h-4 bg-blue-600 rounded flex justify-between"></div>
-                    <div className="absolute top-1/2 left-[40%] w-10 h-3 bg-white/80 rounded-full"></div>
-                 </div>
+                 <img 
+                   src={honorific === 'Sir' ? sirBullImg : sirMadamImg} 
+                   alt={`${honorific} Avatar`} 
+                   className="w-full h-full object-contain drop-shadow-xl"
+                 />
               </div>
               
-              <div className="flex bg-zinc-800 rounded-full p-1 text-xs font-bold text-gray-400 w-40 justify-between items-center px-1">
-                 <div className="bg-zinc-600 text-white px-3 py-1 rounded-full w-1/2 text-center text-[10px] cursor-pointer">Sir</div>
-                 <div className="w-1/2 text-center text-[10px] cursor-pointer">Madam</div>
+              <div className="flex bg-zinc-800 rounded-full p-1 shadow-inner relative w-full max-w-[140px]">
+                <div 
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-zinc-600 rounded-full transition-transform duration-300 ease-in-out ${honorific === 'Madam' ? 'translate-x-[calc(100%+8px)]' : 'translate-x-0'}`}
+                ></div>
+                <button 
+                   type="button"
+                   onClick={() => setHonorific('Sir')}
+                   className={`flex-1 relative z-10 text-[10px] font-bold uppercase tracking-wider py-1.5 transition-colors ${honorific === 'Sir' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Sir
+                </button>
+                <button 
+                   type="button"
+                   onClick={() => setHonorific('Madam')}
+                   className={`flex-1 relative z-10 text-[10px] font-bold uppercase tracking-wider py-1.5 transition-colors ${honorific === 'Madam' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Madam
+                </button>
               </div>
            </div>
 
