@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { MarketModule } from './market/market.module';
 import { AdminModule } from './admin/admin.module';
+import { GamificationModule } from './gamification/gamification.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AdminModule } from './admin/admin.module';
     AuthModule,
     MarketModule,
     AdminModule,
+    GamificationModule,
     LeaguesModule,
     PortfoliosModule,
     OrdersModule,

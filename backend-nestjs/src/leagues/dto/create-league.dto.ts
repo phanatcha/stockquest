@@ -11,9 +11,27 @@ export class CreateLeagueDto {
     startingCapital: number;
 
     @IsDateString()
+    @IsOptional()
+    startDate?: string;
+
+    @IsDateString()
     endDate: string;
+
+    @IsNumber()
+    @Min(2)
+    @IsOptional()
+    maxParticipants?: number;
 
     @IsBoolean()
     @IsOptional()
     isPublic?: boolean;
+
+    @IsString()
+    @IsOptional()
+    description?: string;
+
+    @IsNumber()
+    @Min(2)
+    @IsOptional()
+    minParticipants?: number;
 }

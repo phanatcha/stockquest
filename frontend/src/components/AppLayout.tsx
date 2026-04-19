@@ -1,6 +1,6 @@
 
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Search, Bell, User, Trophy, BookOpen, Briefcase, TrendingUp } from 'lucide-react';
+import { Search, Bell, User, Trophy, BookOpen, Briefcase, TrendingUp, ScrollText } from 'lucide-react';
 import { useMode } from '../context/ModeContext';
 
 const AppLayout = () => {
@@ -11,6 +11,7 @@ const AppLayout = () => {
     { name: 'Market', path: '/dashboard', icon: TrendingUp },
     { name: 'Portfolio', path: '/portfolio', icon: Briefcase },
     { name: 'Leaderboard', path: '/leaderboard', icon: Trophy },
+    { name: 'Quest', path: '/quests', icon: ScrollText },
     { name: 'Learn', path: '/learn', icon: BookOpen },
   ];
 

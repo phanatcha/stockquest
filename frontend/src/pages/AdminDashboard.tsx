@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Search, Crown, Copy, Trash2, Edit } from 'lucide-react';
+import { getApiBase } from '../config/api';
 
 const AdminDashboard = () => {
   const [data, setData] = useState<any>(null);
@@ -9,7 +10,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const res = await fetch('http://localhost:3000/admin/dashboard');
+        const res = await fetch(`${getApiBase()}/admin/dashboard`);
         if (res.ok) {
           setData(await res.json());
         }
@@ -72,7 +73,7 @@ const AdminDashboard = () => {
                      dataKey="time" 
                      axisLine={false} 
                      tickLine={false} 
-                     tick={{ fontSize: 10, fill: '#666', angle: -45, dy: 15 }} 
+                     tick={{ fontSize: 10, fill: '#666', dy: 8 }} 
                    />
                    <YAxis 
                      axisLine={false} 

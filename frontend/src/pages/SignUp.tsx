@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiBase } from '../config/api';
 import sirBullImg from '../assets/sirbull.png';
 import sirMadamImg from '../assets/sirmadam.png';
 import unionIcon from '../assets/Union.png';
@@ -26,7 +27,7 @@ const SignUp = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:3000/auth/register', {
+      const res = await fetch(`${getApiBase()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // using username as name to satisfy the backend dto

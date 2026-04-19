@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE_URL = 'http://localhost:3000'; // Assuming standard NestJS port
+import { getApiBase } from '../config/api';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -32,7 +31,7 @@ const Onboarding = () => {
     setLoading(true);
     try {
       // In a real app we'd attach a Bearer token. Here we might just mock if backend is not reachable.
-      const res = await fetch(`${API_BASE_URL}/users/onboarding`, {
+      const res = await fetch(`${getApiBase()}/users/onboarding`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

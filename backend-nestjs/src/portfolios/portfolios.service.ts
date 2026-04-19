@@ -10,6 +10,29 @@ export class PortfoliosService {
         private marketService: MarketService,
     ) { }
 
+    async updatePortfolioValue(portfolioId: string) {
+        const portfolio = await this.prisma.portfolio.findUnique({
+            where: { id: portfolioId },
+            include: { holdings: true },
+        });
+        if (!portfolio) return 0;
+        const symbols = portfolio.holdings.map((h) => h.symbol);
+        const quotes = symbols.length
+            ? await this.marketService.getBatchQuotes(symbols)
+            : [];
+        const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]));
+        const holdingsValue = portfolio.holdings.reduce((sum, h) => {
+            const p = priceMap.get(h.symbol) ?? h.avgPrice;
+            return sum + h.quantity * p;
+        }, 0);
+        const total = portfolio.cashBalance + holdingsValue;
+        await this.prisma.portfolio.update({
+            where: { id: portfolioId },
+            data: { portfolioValue: total },
+        });
+        return total;
+    }
+
     async findOne(id: string, userId: string) {
         const portfolio = await this.prisma.portfolio.findUnique({
             where: { id },
@@ -75,7 +98,9 @@ export class PortfoliosService {
                 data: {
                     userId,
                     leagueId: targetLeague.id,
-                    cashBalance: targetLeague.startingCapital
+                    cashBalance: targetLeague.startingCapital,
+                    startingCash: targetLeague.startingCapital,
+                    portfolioValue: targetLeague.startingCapital,
                 },
                 include: { holdings: true, league: true, user: { select: { username: true, name: true } } }
             });

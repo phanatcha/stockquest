@@ -5,12 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import { Role } from '@prisma/client';
+import { QuestsService } from '../gamification/quests.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private questsService: QuestsService,
     ) { }
 
     async register(registerDto: RegisterDto) {
@@ -38,6 +40,7 @@ export class AuthService {
             },
         });
 
+        await this.questsService.assignEligibleQuests(user.id);
         return this.generateToken(user);
     }
 
@@ -60,6 +63,7 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
+        await this.questsService.assignEligibleQuests(user.id);
         return this.generateToken(user);
     }
 

@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,8 +18,18 @@ model User {
   createdAt           DateTime @default(now())
   onboardingCompleted Boolean  @default(false)
   riskTolerance       String?
+  level               Int      @default(1)
+  tier                Int      @default(1)
+  totalXp             Int      @default(0)
+  barleyBalance       Int      @default(0)
+  articlesReadCount   Int      @default(0)
   portfolios          Portfolio[]
   riskProfile         RiskProfile?
+  createdLeagues      League[] @relation("LeagueCreator")
+  userQuests          UserQuest[]
+  quizAttempts        QuizAttempt[]
+  userBadges          UserBadge[]
+  notifications       Notification[]
 }
 
 enum Role {
@@ -40,29 +49,48 @@ model RiskProfile {
   user          User     @relation(fields: [userId], references: [id])
 }
 
+enum LeagueStatus {
+  LOBBY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model League {
-  id              String   @id @default(uuid())
+  id              String       @id @default(uuid())
   name            String
+  description     String?
+  creatorId       String?
+  creator         User?        @relation("LeagueCreator", fields: [creatorId], references: [id])
   startingCapital Float
+  startDate       DateTime?    @default(now())
   endDate         DateTime
-  isPublic        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  maxParticipants Int          @default(100)
+  minParticipants Int          @default(2)
+  status          LeagueStatus @default(LOBBY)
+  isPublic        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
   portfolios      Portfolio[]
 }
 
 model Portfolio {
-  id          String   @id @default(uuid())
-  userId      String
-  leagueId    String
-  cashBalance Float
-  user        User     @relation(fields: [userId], references: [id])
-  league      League   @relation(fields: [leagueId], references: [id])
-  holdings    Holding[]
-  orders      Order[]
+  id              String   @id @default(uuid())
+  userId          String
+  leagueId        String
+  cashBalance     Float
+  startingCash    Float    @default(0)
+  portfolioValue  Float    @default(0)
+  pointsEarned    Int      @default(0)
+  xpEarned        Int      @default(0)
+  finalRank       Int?
+  user            User     @relation(fields: [userId], references: [id])
+  league          League   @relation(fields: [leagueId], references: [id])
+  holdings        Holding[]
+  orders          Order[]
 }
 
 model Holding {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   portfolioId String
   symbol      String
   quantity    Int
@@ -84,4 +112,161 @@ model Order {
 enum OrderType {
   BUY
   SELL
+}
+
+// --- Gamification: progression (singleton row) ---
+model ProgressionConfig {
+  id       String @id @default("default")
+  baseXp   Float  @default(100)
+  exponent Float  @default(1.2)
+}
+
+// --- Tier gating ---
+model TierConfig {
+  tier               Int    @id
+  name               String
+  minLevel           Int
+  prerequisiteQuizId String?
+  prerequisiteQuiz   Quiz?  @relation(fields: [prerequisiteQuizId], references: [id])
+}
+
+// --- Quests ---
+enum QuestCategory {
+  ACTION_STRATEGY
+  COMMUNITY_LEARNING
+}
+
+enum QuestActionType {
+  TRADE_EXECUTED
+  LEAGUE_JOINED
+  LEAGUE_FINISHED_TOP3
+  ARTICLE_READ
+  QUIZ_PASSED
+  BADGE_EARNED
+  PORTFOLIO_DIVERSIFIED
+  LEAGUE_CREATED
+}
+
+enum UserQuestStatus {
+  ACTIVE
+  COMPLETED
+  CLAIMED
+  EXPIRED
+}
+
+model Quest {
+  id              String          @id @default(uuid())
+  title           String
+  description     String
+  category        QuestCategory
+  actionType      QuestActionType
+  targetValue     Int
+  xpReward        Int
+  barleyReward    Int
+  repeatable      Boolean         @default(false)
+  tierRequirement Int             @default(1)
+  expiry          DateTime?
+  autoClaim       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  userQuests      UserQuest[]
+}
+
+model UserQuest {
+  id        String          @id @default(uuid())
+  userId    String
+  questId   String
+  progress  Int             @default(0)
+  status    UserQuestStatus @default(ACTIVE)
+  claimedAt DateTime?
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest     Quest           @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId])
+}
+
+// --- Quizzes ---
+model Quiz {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  tierUnlocked    Int
+  passScore       Float
+  cooldownMinutes Int            @default(60)
+  questions       QuizQuestion[]
+  attempts        QuizAttempt[]
+  tierConfigs     TierConfig[]
+}
+
+model QuizQuestion {
+  id           String @id @default(uuid())
+  quizId       String
+  text         String
+  options      String[]
+  correctIndex Int
+  points       Int      @default(1)
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id          String   @id @default(uuid())
+  userId      String
+  quizId      String
+  score       Float
+  passed      Boolean
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+// --- Badges ---
+enum BadgeTrigger {
+  FIRST_TRADE
+  DIVERSIFIED
+  LEAGUE_CHAMPION
+  TOP_3_FINISHER
+  LEAGUE_PARTICIPANT
+  QUIZ_MASTER
+  SCHOLAR
+  LEAGUE_CREATOR
+}
+
+model Badge {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String
+  iconId      String
+  category    QuestCategory
+  trigger     BadgeTrigger @unique
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+}
+
+// --- Notifications ---
+enum NotificationType {
+  QUEST_COMPLETED
+  QUIZ_RESULT
+  TIER_UPGRADE
+  BADGE_EARNED
+  LEAGUE_STATE
+  LEAGUE_REWARDS
+  LEAGUE_CANCELLED
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  type      NotificationType
+  message   String
+  read      Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

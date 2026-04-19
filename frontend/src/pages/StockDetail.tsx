@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowLeft, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 import { useMode } from '../context/ModeContext';
-
-// Mock data generator for chart
-const generateData = (startPrice: number, points: number) => {
-  let price = startPrice;
-  return Array.from({ length: points }).map((_, i) => {
-    price = price + (Math.random() - 0.48) * 2; // slightly upward bias
-    return { time: `10:${i < 10 ? '0'+i : i}`, price };
-  });
-};
+import { getApiBase } from '../config/api';
 
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
@@ -36,8 +28,8 @@ const StockDetail = () => {
     const fetchMarketData = async () => {
        try {
           const [quoteRes, histRes] = await Promise.all([
-             fetch(`http://localhost:3000/market/quote/${symbol}`),
-             fetch(`http://localhost:3000/market/history/${symbol}?interval=1d`)
+             fetch(`${getApiBase()}/market/quote/${symbol}`),
+             fetch(`${getApiBase()}/market/history/${symbol}?interval=1d`)
           ]);
           
           if (quoteRes.ok) {
@@ -67,7 +59,7 @@ const StockDetail = () => {
     const fetchPortfolio = async () => {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
+        const res = await fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setPortfolio(await res.json());
@@ -88,7 +80,7 @@ const StockDetail = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/orders', {
+      const res = await fetch(`${getApiBase()}/orders`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -112,7 +104,7 @@ const StockDetail = () => {
       setShares('');
       
       // refresh portfolio cash
-      const refresh = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
+      const refresh = await fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (refresh.ok) setPortfolio(await refresh.json());

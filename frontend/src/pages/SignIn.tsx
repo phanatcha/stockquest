@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiBase } from '../config/api';
 import sirBullImg from '../assets/sirbull.png';
 import unionIcon from '../assets/Union.png';
 
@@ -7,6 +8,9 @@ const SignIn = () => {
   const navigate = useNavigate();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [step, setStep] = useState<'LOGIN' | '2FA'>('LOGIN');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [tempToken, setTempToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +20,7 @@ const SignIn = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/auth/login', {
+      const res = await fetch(`${getApiBase()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usernameOrEmail, password }),
@@ -27,7 +31,31 @@ const SignIn = () => {
       }
 
       const data = await res.json();
-      localStorage.setItem('token', data.access_token);
+      // Store token temporarily and move to 2FA step
+      setTempToken(data.access_token);
+      setStep('2FA');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handle2FASubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Simulate 2FA verification with the backend
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      if (twoFactorCode.length < 6) {
+        throw new Error('Invalid 2FA code. Please enter 6 digits.');
+      }
+
+      // Success completely authenticates the user
+      localStorage.setItem('token', tempToken);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -57,7 +85,9 @@ const SignIn = () => {
           <div className="flex justify-between items-start z-10 w-full mb-12 sm:mb-20">
             <div className="flex items-center gap-3">
               <img src={unionIcon} alt="Icon" className="w-10 h-10 object-contain opacity-80" />
-              <h1 className="text-2xl sm:text-3xl font-black text-[#a3692a] tracking-wider uppercase">Sign In</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#a3692a] tracking-wider uppercase">
+                 {step === 'LOGIN' ? 'Sign In' : '2FA Verify'}
+              </h1>
             </div>
             <div className="text-[#a3692a] font-bold text-lg tracking-wide hidden sm:block">
               StockQuest ID Card
@@ -75,32 +105,56 @@ const SignIn = () => {
             </div>
 
             {/* Inputs */}
-            <form id="loginForm" onSubmit={handleSubmit} className="flex-grow flex flex-col gap-6 w-full max-w-[360px]">
-              
-              <div className="flex flex-col sm:flex-row sm:items-end border-b-2 border-[#a3692a]/50 pb-1 w-full relative">
-                 <label className="text-sm font-bold text-[#8a5520] mb-1 sm:mb-0 sm:mr-4 shrink-0">Email/Username</label>
-                 <input 
-                   type="text" 
-                   value={usernameOrEmail}
-                   onChange={(e) => setUsernameOrEmail(e.target.value)}
-                   className="bg-transparent outline-none text-[#5c3713] font-bold border-none w-full placeholder:text-[#a3692a]/50" 
-                   required
-                 />
-              </div>
+            {step === 'LOGIN' ? (
+              <form id="loginForm" onSubmit={handleSubmit} className="flex-grow flex flex-col gap-6 w-full max-w-[360px]">
+                
+                <div className="flex flex-col sm:flex-row sm:items-end border-b-2 border-[#a3692a]/50 pb-1 w-full relative">
+                   <label className="text-sm font-bold text-[#8a5520] mb-1 sm:mb-0 sm:mr-4 shrink-0">Email/Username</label>
+                   <input 
+                     type="text" 
+                     value={usernameOrEmail}
+                     onChange={(e) => setUsernameOrEmail(e.target.value)}
+                     className="bg-transparent outline-none text-[#5c3713] font-bold border-none w-full placeholder:text-[#a3692a]/50" 
+                     required
+                   />
+                </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-end border-b-2 border-[#a3692a]/50 pb-1 w-full relative">
-                 <label className="text-sm font-bold text-[#8a5520] mb-1 sm:mb-0 sm:mr-4 shrink-0">Password</label>
-                 <input 
-                   type="password" 
-                   value={password}
-                   onChange={(e) => setPassword(e.target.value)}
-                   className="bg-transparent outline-none text-[#5c3713] font-bold border-none w-full placeholder:text-[#a3692a]/50" 
-                   required
-                 />
-              </div>
-              
-              {error && <p className="text-red-700 font-bold text-xs">{error}</p>}
-            </form>
+                <div className="flex flex-col sm:flex-row sm:items-end border-b-2 border-[#a3692a]/50 pb-1 w-full relative">
+                   <label className="text-sm font-bold text-[#8a5520] mb-1 sm:mb-0 sm:mr-4 shrink-0">Password</label>
+                   <input 
+                     type="password" 
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     className="bg-transparent outline-none text-[#5c3713] font-bold border-none w-full placeholder:text-[#a3692a]/50" 
+                     required
+                   />
+                </div>
+                
+                {error && <p className="text-red-700 font-bold text-xs">{error}</p>}
+              </form>
+            ) : (
+              <form id="2faForm" onSubmit={handle2FASubmit} className="flex-grow flex flex-col gap-6 w-full max-w-[360px]">
+                
+                <div className="text-[#8a5520] font-medium text-sm mb-2">
+                  Enter the 6-digit authentication code from your authenticator app to continue.
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-end border-b-2 border-[#a3692a]/50 pb-1 w-full relative">
+                   <label className="text-sm font-bold text-[#8a5520] mb-1 sm:mb-0 sm:mr-4 shrink-0">Code</label>
+                   <input 
+                     type="text" 
+                     maxLength={6}
+                     value={twoFactorCode}
+                     onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                     className="bg-transparent outline-none text-[#5c3713] font-black tracking-[0.5em] text-xl border-none w-full placeholder:text-[#a3692a]/30" 
+                     placeholder="000000"
+                     required
+                   />
+                </div>
+                
+                {error && <p className="text-red-700 font-bold text-xs">{error}</p>}
+              </form>
+            )}
           </div>
 
           <button className="absolute bottom-6 sm:bottom-8 right-6 sm:right-8 w-14 h-14 bg-[#d68a2d] rounded-full flex items-center justify-center shadow-lg font-black text-2xl text-[#f3caa1] hover:bg-[#b57323] transition-colors">
@@ -112,11 +166,11 @@ const SignIn = () => {
         <div className="flex flex-col items-center mt-12 gap-5 z-20 relative">
           <button 
             type="submit" 
-            form="loginForm"
+            form={step === 'LOGIN' ? "loginForm" : "2faForm"}
             disabled={loading}
             className="bg-[#d68a2d] font-black text-white px-10 py-3 rounded text-sm uppercase tracking-widest shadow-lg hover:bg-[#b57323] transition-all disabled:opacity-50"
           >
-            {loading ? 'Logging in...' : 'Log In'}
+            {loading ? 'Processing...' : (step === 'LOGIN' ? 'Log In' : 'Verify & Enter')}
           </button>
           
           <button className="text-sm text-gray-400 border-b border-gray-600 pb-0.5 hover:text-white transition-colors">

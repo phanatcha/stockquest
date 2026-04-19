@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, ChevronDown, Shield, Trophy, Flame, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMode } from '../context/ModeContext';
+import { getApiBase } from '../config/api';
 import sirBullImg from '../assets/sirbull.png';
 import sirMadamImg from '../assets/sirmadam.png';
 
@@ -20,7 +21,7 @@ const Portfolio = () => {
         const token = localStorage.getItem('token');
         if (!token) return navigate('/');
         
-        const res = await fetch(`http://localhost:3000/portfolios/mine?live=${isLiveMarket}`, {
+        const res = await fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setPortfolio(await res.json());

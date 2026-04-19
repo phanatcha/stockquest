@@ -8,6 +8,7 @@ import AppLayout from './components/AppLayout';
 import Dashboard from './pages/Dashboard';
 import Portfolio from './pages/Portfolio';
 import Leaderboard from './pages/Leaderboard';
+import Quest from './pages/Quest';
 import Learn from './pages/Learn';
 import StockDetail from './pages/StockDetail';
 import AdminDashboard from './pages/AdminDashboard';
@@ -29,6 +30,7 @@ function App() {
              <Route path="/dashboard" element={<Dashboard />} />
              <Route path="/portfolio" element={<Portfolio />} />
              <Route path="/leaderboard" element={<Leaderboard />} />
+             <Route path="/quests" element={<Quest />} />
              <Route path="/learn" element={<Learn />} />
              <Route path="/stock/:symbol" element={<StockDetail />} />
           </Route>

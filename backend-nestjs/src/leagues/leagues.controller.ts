@@ -13,10 +13,12 @@ export class LeaguesController {
     constructor(private readonly leaguesService: LeaguesService) { }
 
     @Post()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.ADMIN)
-    create(@Body() createLeagueDto: CreateLeagueDto) {
-        return this.leaguesService.create(createLeagueDto);
+    @UseGuards(JwtAuthGuard)
+    create(
+        @Request() req: { user: { userId: string } },
+        @Body() createLeagueDto: CreateLeagueDto,
+    ) {
+        return this.leaguesService.create(createLeagueDto, req.user.userId);
     }
 
     @Get()

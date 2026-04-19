@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiBase } from '../config/api';
 import { TrendingUp, TrendingDown, Clock, MoveUpRight, ArrowRight } from 'lucide-react';
 
 const Dashboard = () => {
@@ -12,7 +13,7 @@ const Dashboard = () => {
     const fetchMarketOverview = async () => {
       try {
          const symbols = 'AAPL,MSFT,NVDA,TSLA,AMZN,META,GOOGL,NFLX';
-         const res = await fetch(`http://localhost:3000/market/batch?symbols=${symbols}`);
+         const res = await fetch(`${getApiBase()}/market/batch?symbols=${symbols}`);
          if (res.ok) {
             const data = await res.json();
             const mapped = data.map((d: any) => ({

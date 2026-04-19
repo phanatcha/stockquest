@@ -5,6 +5,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { MarketStatusService } from './market-status.service';
 import { MarketService } from '../market/market.service';
 import { OrderType } from '@prisma/client';
+import { PortfoliosService } from '../portfolios/portfolios.service';
+import { GamificationEventsService } from '../gamification/gamification-events.service';
 
 @Injectable()
 export class OrdersService {
@@ -12,6 +14,8 @@ export class OrdersService {
         private prisma: PrismaService,
         private marketStatusService: MarketStatusService,
         private marketService: MarketService,
+        private portfolios: PortfoliosService,
+        private gamification: GamificationEventsService,
     ) { }
 
     async create(userId: string, createOrderDto: CreateOrderDto) {
@@ -38,7 +42,7 @@ export class OrdersService {
             throw new ForbiddenException('You can only store orders for your own portfolio');
         }
 
-        return this.prisma.$transaction(async (tx) => {
+        const order = await this.prisma.$transaction(async (tx) => {
             const currentPortfolio = await tx.portfolio.findUniqueOrThrow({
                 where: { id: portfolioId },
             });
@@ -126,5 +130,9 @@ export class OrdersService {
                 },
             });
         });
+
+        await this.portfolios.updatePortfolioValue(portfolioId);
+        await this.gamification.onTradeExecuted(userId, portfolioId);
+        return order;
     }
 }
