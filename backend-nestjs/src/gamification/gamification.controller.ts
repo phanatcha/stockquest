@@ -108,6 +108,26 @@ export class GamificationController {
     return this.quizzesService.attemptsForUser(req.user.userId);
   }
 
+  /** Full catalog with earned/locked + summary (preferred for UI). */
+  @Get('badges/catalog')
+  @UseGuards(JwtAuthGuard)
+  badgeCatalog(@Request() req: { user: { userId: string } }) {
+    return this.badgesService.getCatalog(req.user.userId);
+  }
+
+  @Get('badges/unseen-count')
+  @UseGuards(JwtAuthGuard)
+  async badgeUnseenCount(@Request() req: { user: { userId: string } }) {
+    const count = await this.badgesService.unseenCount(req.user.userId);
+    return { count };
+  }
+
+  @Post('badges/acknowledge')
+  @UseGuards(JwtAuthGuard)
+  acknowledgeBadges(@Request() req: { user: { userId: string } }) {
+    return this.badgesService.acknowledgeAll(req.user.userId);
+  }
+
   @Get('badges')
   @UseGuards(JwtAuthGuard)
   listBadges(@Request() req: { user: { userId: string } }) {

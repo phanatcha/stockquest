@@ -1,11 +1,31 @@
 
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Search, Bell, User, Trophy, BookOpen, Briefcase, TrendingUp, ScrollText } from 'lucide-react';
 import { useMode } from '../context/ModeContext';
+import { getApiBase } from '../config/api';
 
 const AppLayout = () => {
   const location = useLocation();
   const { isLiveMarket, toggleMode } = useMode();
+  const [badgeDot, setBadgeDot] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const h: Record<string, string> = {};
+    if (token) h.Authorization = `Bearer ${token}`;
+    const fetchUnseen = () => {
+      fetch(`${getApiBase()}/gamification/badges/unseen-count`, { headers: h })
+        .then((r) => r.json())
+        .then((d: { count?: number }) => setBadgeDot((d.count ?? 0) > 0))
+        .catch(() => setBadgeDot(false));
+    };
+    fetchUnseen();
+    const onAck = () => fetchUnseen();
+    window.addEventListener('stockquest-badges-ack', onAck);
+    return () => window.removeEventListener('stockquest-badges-ack', onAck);
+  }, [location.pathname]);
   
   const navItems = [
     { name: 'Market', path: '/dashboard', icon: TrendingUp },
@@ -85,17 +105,23 @@ const AppLayout = () => {
              {navItems.map((item) => {
                const Icon = item.icon;
                const isActive = location.pathname === item.path;
+               const showDot = item.path === '/portfolio' && badgeDot;
                return (
                  <Link 
                    key={item.name} 
                    to={item.path}
-                   className={`flex items-center gap-4 px-3 md:px-4 py-3 rounded-xl transition-all ${
+                   className={`relative flex items-center gap-4 px-3 md:px-4 py-3 rounded-xl transition-all ${
                      isActive 
                        ? (isLiveMarket ? 'bg-[#00a859]/10 text-[#00a859] font-bold' : 'bg-red-600/10 text-red-500 font-bold') 
                        : 'text-gray-400 hover:bg-[#2a2a2a] hover:text-white font-medium'
                    }`}
                  >
-                   <Icon className={`w-5 h-5 ${isActive ? (isLiveMarket ? 'text-[#00a859]' : 'text-red-500') : ''}`} />
+                   <span className="relative">
+                     <Icon className={`w-5 h-5 ${isActive ? (isLiveMarket ? 'text-[#00a859]' : 'text-red-500') : ''}`} />
+                     {showDot && (
+                       <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full border border-[#1a1a1a]" />
+                     )}
+                   </span>
                    <span className="hidden md:block tracking-wide text-sm">{item.name}</span>
                  </Link>
                )
@@ -121,9 +147,13 @@ const AppLayout = () => {
          {navItems.map((item) => {
            const Icon = item.icon;
            const isActive = location.pathname === item.path;
+           const showDot = item.path === '/portfolio' && badgeDot;
            return (
-             <Link key={item.name} to={item.path} className={`flex flex-col items-center gap-1 ${isActive ? (isLiveMarket ? 'text-[#00a859]' : 'text-red-500') : 'text-gray-400'}`}>
-                <Icon className="w-5 h-5" />
+             <Link key={item.name} to={item.path} className={`relative flex flex-col items-center gap-1 ${isActive ? (isLiveMarket ? 'text-[#00a859]' : 'text-red-500') : 'text-gray-400'}`}>
+                <span className="relative">
+                  <Icon className="w-5 h-5" />
+                  {showDot && <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-red-600 rounded-full border border-[#1a1a1a]" />}
+                </span>
                 <span className="text-[10px]">{item.name}</span>
              </Link>
            )

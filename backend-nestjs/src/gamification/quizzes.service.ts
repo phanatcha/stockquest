@@ -96,7 +96,7 @@ export class QuizzesService {
     );
 
     if (passed) {
-      await this.events.onQuizPassed(userId);
+      await this.events.onQuizPassed(userId, score);
       await this.progression.checkTierUpgrade(userId);
     }
 

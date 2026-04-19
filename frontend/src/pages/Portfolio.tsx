@@ -1,17 +1,34 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownRight, ChevronDown, Shield, Trophy, Flame, Star } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronDown, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMode } from '../context/ModeContext';
 import { getApiBase } from '../config/api';
+import { PortfolioBadgesSection } from '../components/PortfolioBadgesSection';
 import sirBullImg from '../assets/sirbull.png';
 import sirMadamImg from '../assets/sirmadam.png';
+
+type EarnedBadgePreview = {
+  id: string;
+  iconKey: string;
+  name: string;
+  rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+  earnedAt: string;
+};
+
+const previewRarityRing: Record<EarnedBadgePreview['rarity'], string> = {
+  COMMON: 'border-zinc-500 bg-zinc-800/90',
+  RARE: 'border-sky-500 bg-sky-950/90',
+  EPIC: 'border-violet-500 bg-violet-950/90',
+  LEGENDARY: 'border-amber-400 bg-amber-950/90',
+};
 
 const Portfolio = () => {
   const navigate = useNavigate();
   const { isLiveMarket } = useMode();
   const [loading, setLoading] = useState(true);
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'holdings' | 'activity'>('activity');
+  const [earnedBadgesPreview, setEarnedBadgesPreview] = useState<EarnedBadgePreview[]>([]);
+  const [activeTab, setActiveTab] = useState<'holdings' | 'activity' | 'badges'>('activity');
   const [honorific, setHonorific] = useState<'Sir' | 'Madam'>('Sir');
 
   // Fetch real portfolio to support Holdings tab, even if we hardcode Activity
@@ -21,10 +38,40 @@ const Portfolio = () => {
         const token = localStorage.getItem('token');
         if (!token) return navigate('/');
         
-        const res = await fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setPortfolio(await res.json());
+        const headers = { Authorization: `Bearer ${token}` };
+        const [portfolioRes, badgesRes] = await Promise.all([
+          fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, { headers }),
+          fetch(`${getApiBase()}/gamification/badges/catalog`, { headers }),
+        ]);
+        if (portfolioRes.ok) setPortfolio(await portfolioRes.json());
+        if (badgesRes.ok) {
+          const catalog = await badgesRes.json();
+          const items: Array<{
+            id: string;
+            iconKey: string;
+            name: string;
+            rarity: EarnedBadgePreview['rarity'];
+            earnedAt: string | null;
+          }> = catalog.items ?? [];
+          const earned = items
+            .filter((b) => b.earnedAt)
+            .sort(
+              (a, b) =>
+                new Date(b.earnedAt as string).getTime() -
+                new Date(a.earnedAt as string).getTime(),
+            )
+            .slice(0, 5)
+            .map((b) => ({
+              id: b.id,
+              iconKey: b.iconKey,
+              name: b.name,
+              rarity: b.rarity,
+              earnedAt: b.earnedAt as string,
+            }));
+          setEarnedBadgesPreview(earned);
+        } else {
+          setEarnedBadgesPreview([]);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -120,16 +167,35 @@ const Portfolio = () => {
 
               <div>
                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Achievement Badges</h4>
-                 <div className="flex gap-3">
-                    <div className="w-12 h-12 rounded-full border-4 border-blue-600 bg-blue-800 flex items-center justify-center shadow-lg transform -rotate-6">
-                       <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-                    </div>
-                    <div className="w-12 h-12 rounded-full border-4 border-[#8B4513] bg-[#A0522D] flex items-center justify-center shadow-lg transform rotate-6">
-                       <Trophy className="w-6 h-6 text-[#CD7F32] fill-[#CD7F32]" />
-                    </div>
-                    <div className="w-12 h-12 rounded-full border-4 border-[#3E2723] bg-[#4E342E] flex items-center justify-center shadow-lg transform -rotate-3">
-                       <Flame className="w-6 h-6 text-red-500 fill-white" />
-                    </div>
+                 <div className="flex gap-3 flex-wrap items-center min-h-[3rem]">
+                    {loading ? (
+                      <div className="flex gap-3">
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="w-12 h-12 rounded-full border-4 border-gray-300/40 bg-gray-300/30 animate-pulse"
+                          />
+                        ))}
+                      </div>
+                    ) : earnedBadgesPreview.length === 0 ? (
+                      <p className="text-xs font-medium text-gray-500 max-w-[220px] leading-snug">
+                        No badges yet. Open the Badges tab to track progress.
+                      </p>
+                    ) : (
+                      earnedBadgesPreview.map((b, i) => (
+                        <div
+                          key={b.id}
+                          title={b.name}
+                          role="img"
+                          aria-label={b.name}
+                          className={`w-12 h-12 rounded-full border-4 flex items-center justify-center shadow-lg text-2xl leading-none select-none ${
+                            previewRarityRing[b.rarity] ?? previewRarityRing.COMMON
+                          } ${i % 3 === 0 ? '-rotate-6' : i % 3 === 1 ? 'rotate-6' : '-rotate-3'}`}
+                        >
+                          {b.iconKey}
+                        </div>
+                      ))
+                    )}
                  </div>
               </div>
            </div>
@@ -146,23 +212,34 @@ const Portfolio = () => {
         {renderIDCard()}
 
         {/* Tab Selector */}
-        <div className="flex w-full mb-0 gap-4 mt-6">
+        <div className="flex w-full mb-0 gap-2 sm:gap-4 mt-6 flex-wrap">
            <button 
+             type="button"
              onClick={() => setActiveTab('holdings')}
-             className={`flex-1 py-5 text-center font-bold text-lg rounded-t-xl transition-colors ${activeTab === 'holdings' ? 'bg-[#222] text-white' : 'bg-[#2a2a2a] text-zinc-300 hover:bg-[#333]'}`}
+             className={`flex-1 min-w-[100px] py-5 text-center font-bold text-lg rounded-t-xl transition-colors ${activeTab === 'holdings' ? 'bg-[#222] text-white' : 'bg-[#2a2a2a] text-zinc-300 hover:bg-[#333]'}`}
            >
              Holdings
            </button>
            <button 
+             type="button"
              onClick={() => setActiveTab('activity')}
-             className={`flex-1 py-5 text-center font-bold text-lg rounded-t-xl transition-colors ${activeTab === 'activity' ? 'bg-[#222] text-white' : 'bg-[#2a2a2a] text-zinc-300 hover:bg-[#333]'}`}
+             className={`flex-1 min-w-[100px] py-5 text-center font-bold text-lg rounded-t-xl transition-colors ${activeTab === 'activity' ? 'bg-[#222] text-white' : 'bg-[#2a2a2a] text-zinc-300 hover:bg-[#333]'}`}
            >
              Activity
+           </button>
+           <button 
+             type="button"
+             onClick={() => setActiveTab('badges')}
+             className={`flex-1 min-w-[100px] py-5 text-center font-bold text-lg rounded-t-xl transition-colors ${activeTab === 'badges' ? 'bg-[#222] text-white' : 'bg-[#2a2a2a] text-zinc-300 hover:bg-[#333]'}`}
+           >
+             Badges
            </button>
         </div>
 
         <div className="bg-[#222] rounded-b-xl rounded-t-sm p-8 min-h-[500px]">
-          {activeTab === 'activity' ? (
+          {activeTab === 'badges' ? (
+            <PortfolioBadgesSection />
+          ) : activeTab === 'activity' ? (
              <div>
                 <h2 className="text-3xl font-bold text-white mb-2">Activity</h2>
                 <p className="text-zinc-500 font-bold mb-8">Reported on Mar 2026</p>

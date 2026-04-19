@@ -1,7 +1,8 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationType } from '@prisma/client';
+import { BadgeTriggerEvent, NotificationType } from '@prisma/client';
 import { QuestsService } from './quests.service';
+import { BadgesService } from './badges.service';
 
 @Injectable()
 export class ProgressionService {
@@ -9,6 +10,8 @@ export class ProgressionService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => QuestsService))
     private readonly questsService: QuestsService,
+    @Inject(forwardRef(() => BadgesService))
+    private readonly badgesService: BadgesService,
   ) {}
 
   private async getConfig() {
@@ -118,6 +121,11 @@ export class ProgressionService {
         },
       });
       await this.questsService.assignEligibleQuests(userId);
+      await this.badgesService.checkAndAwardBadge(userId, BadgeTriggerEvent.TIER_UPGRADED, {
+        upgraded: true,
+        newTier: nextTier,
+        previousTier: user.tier,
+      });
       return { upgraded: true, newTier: nextTier };
     }
 

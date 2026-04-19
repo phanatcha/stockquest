@@ -71,6 +71,7 @@ model League {
   isPublic        Boolean      @default(true)
   createdAt       DateTime     @default(now())
   portfolios      Portfolio[]
+  snapshots       LeagueSnapshot[]
 }
 
 model Portfolio {
@@ -87,6 +88,7 @@ model Portfolio {
   league          League   @relation(fields: [leagueId], references: [id])
   holdings        Holding[]
   orders          Order[]
+  snapshotEntries LeagueSnapshotEntry[]
 }
 
 model Holding {
@@ -219,35 +221,70 @@ model QuizAttempt {
 }
 
 // --- Badges ---
-enum BadgeTrigger {
-  FIRST_TRADE
-  DIVERSIFIED
-  LEAGUE_CHAMPION
-  TOP_3_FINISHER
-  LEAGUE_PARTICIPANT
-  QUIZ_MASTER
-  SCHOLAR
-  LEAGUE_CREATOR
+enum BadgeRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum BadgeTriggerEvent {
+  TRADE_EXECUTED
+  LEAGUE_CREATED
+  LEAGUE_COMPLETED
+  QUEST_COMPLETED
+  ARTICLE_READ
+  QUIZ_PASSED
+  TIER_UPGRADED
 }
 
 model Badge {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  description String
-  iconId      String
-  category    QuestCategory
-  trigger     BadgeTrigger @unique
-  userBadges  UserBadge[]
+  id            String            @id @default(uuid())
+  code          String            @unique
+  name          String
+  description   String
+  iconKey       String
+  category      QuestCategory
+  triggerEvent  BadgeTriggerEvent
+  threshold     Int?
+  conditionText String
+  rarity        BadgeRarity
+  userBadges    UserBadge[]
 }
 
 model UserBadge {
+  id       String   @id @default(uuid())
   userId   String
   badgeId  String
   earnedAt DateTime @default(now())
+  seen     Boolean  @default(false)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
-  @@id([userId, badgeId])
+  @@unique([userId, badgeId])
+}
+
+enum SnapshotType {
+  MIDPOINT
+}
+
+model LeagueSnapshot {
+  id             String                @id @default(uuid())
+  leagueId       String
+  league         League                @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  snapshotType   SnapshotType
+  takenAt        DateTime              @default(now())
+  entries        LeagueSnapshotEntry[]
+}
+
+model LeagueSnapshotEntry {
+  id               String         @id @default(uuid())
+  snapshotId       String
+  snapshot         LeagueSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  portfolioId      String
+  rank             Int
+  portfolioValue   Float
+  portfolio        Portfolio      @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 }
 
 // --- Notifications ---

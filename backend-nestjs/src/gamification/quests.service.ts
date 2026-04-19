@@ -7,12 +7,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  BadgeTriggerEvent,
   NotificationType,
   QuestActionType,
   UserQuestStatus,
 } from '@prisma/client';
 import { ProgressionService } from './progression.service';
 import { NotificationsService } from './notifications.service';
+import { BadgesService } from './badges.service';
+
 @Injectable()
 export class QuestsService {
   constructor(
@@ -20,6 +23,8 @@ export class QuestsService {
     @Inject(forwardRef(() => ProgressionService))
     private readonly progression: ProgressionService,
     private readonly notifications: NotificationsService,
+    @Inject(forwardRef(() => BadgesService))
+    private readonly badges: BadgesService,
   ) {}
 
   async assignEligibleQuests(userId: string) {
@@ -32,19 +37,32 @@ export class QuestsService {
     });
 
     for (const q of quests) {
-      const claimed = await this.prisma.userQuest.findFirst({
-        where: { userId, questId: q.id, status: UserQuestStatus.CLAIMED },
+      const existing = await this.prisma.userQuest.findFirst({
+        where: { userId, questId: q.id },
       });
-      if (claimed && !q.repeatable) continue;
 
-      const open = await this.prisma.userQuest.findFirst({
-        where: {
-          userId,
-          questId: q.id,
-          status: { in: [UserQuestStatus.ACTIVE, UserQuestStatus.COMPLETED] },
-        },
-      });
-      if (open) continue;
+      if (existing) {
+        if (
+          existing.status === UserQuestStatus.ACTIVE ||
+          existing.status === UserQuestStatus.COMPLETED
+        ) {
+          continue;
+        }
+        if (existing.status === UserQuestStatus.CLAIMED) {
+          if (q.repeatable) {
+            await this.prisma.userQuest.update({
+              where: { id: existing.id },
+              data: {
+                progress: 0,
+                status: UserQuestStatus.ACTIVE,
+                claimedAt: null,
+              },
+            });
+          }
+          continue;
+        }
+        continue;
+      }
 
       await this.prisma.userQuest.create({
         data: { userId, questId: q.id, progress: 0, status: UserQuestStatus.ACTIVE },
@@ -130,15 +148,17 @@ export class QuestsService {
     await this.progression.checkTierUpgrade(userId);
 
     if (uq.quest.repeatable) {
-      await this.prisma.userQuest.create({
+      await this.prisma.userQuest.update({
+        where: { id: uq.id },
         data: {
-          userId,
-          questId: uq.questId,
           progress: 0,
           status: UserQuestStatus.ACTIVE,
+          claimedAt: null,
         },
       });
     }
+
+    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.QUEST_COMPLETED, {});
 
     return { ok: true, xp: uq.quest.xpReward, barley: uq.quest.barleyReward };
   }

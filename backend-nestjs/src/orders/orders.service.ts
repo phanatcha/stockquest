@@ -132,7 +132,11 @@ export class OrdersService {
         });
 
         await this.portfolios.updatePortfolioValue(portfolioId);
-        await this.gamification.onTradeExecuted(userId, portfolioId);
+        await this.gamification.onTradeExecuted(userId, portfolioId, {
+            orderType: type === OrderType.BUY ? 'BUY' : 'SELL',
+            symbol,
+            sellAt: order.createdAt,
+        });
         return order;
     }
 }

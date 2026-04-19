@@ -7,7 +7,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeagueDto } from './dto/create-league.dto';
 import { UpdateLeagueDto } from './dto/update-league.dto';
-import { LeagueStatus, NotificationType } from '@prisma/client';
+import {
+  BadgeTriggerEvent,
+  LeagueStatus,
+  NotificationType,
+  SnapshotType,
+} from '@prisma/client';
 import { MarketService } from '../market/market.service';
 import { ProgressionService } from '../gamification/progression.service';
 import { GamificationEventsService } from '../gamification/gamification-events.service';
@@ -264,6 +269,8 @@ export class LeaguesService {
       }
     }
 
+    await this.ensureMidpointSnapshots();
+
     const activeLeagues = await this.prisma.league.findMany({
       where: { status: LeagueStatus.ACTIVE },
       include: { portfolios: { include: { holdings: true } } },
@@ -275,10 +282,46 @@ export class LeaguesService {
     }
   }
 
-  private async completeLeague(
+  private async ensureMidpointSnapshots() {
+    const now = new Date();
+    const active = await this.prisma.league.findMany({
+      where: { status: LeagueStatus.ACTIVE },
+      include: { portfolios: { include: { holdings: true } } },
+    });
+
+    for (const league of active) {
+      const start = league.startDate ? new Date(league.startDate) : league.createdAt;
+      const end = new Date(league.endDate);
+      const midTime = new Date(start.getTime() + (end.getTime() - start.getTime()) / 2);
+      if (now < midTime) continue;
+
+      const exists = await this.prisma.leagueSnapshot.findFirst({
+        where: { leagueId: league.id, snapshotType: SnapshotType.MIDPOINT },
+      });
+      if (exists) continue;
+
+      const scored = await this.scoreLeaguePortfolios(league);
+      const ranked = [...scored].sort((a, b) => b.total - a.total);
+
+      await this.prisma.leagueSnapshot.create({
+        data: {
+          leagueId: league.id,
+          snapshotType: SnapshotType.MIDPOINT,
+          entries: {
+            create: ranked.map((row, i) => ({
+              portfolioId: row.portfolioId,
+              rank: i + 1,
+              portfolioValue: row.total,
+            })),
+          },
+        },
+      });
+    }
+  }
+
+  private async scoreLeaguePortfolios(
     league: {
       id: string;
-      name: string;
       startingCapital: number;
       portfolios: Array<{
         id: string;
@@ -297,7 +340,7 @@ export class LeaguesService {
       : [];
     const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]));
 
-    const scored = league.portfolios.map((p) => {
+    return league.portfolios.map((p) => {
       const hv = p.holdings.reduce((s, h) => {
         const px = priceMap.get(h.symbol) ?? h.avgPrice;
         return s + h.quantity * px;
@@ -306,7 +349,23 @@ export class LeaguesService {
       const start = p.startingCash || league.startingCapital;
       return { portfolioId: p.id, userId: p.userId, total, start };
     });
+  }
 
+  private async completeLeague(
+    league: {
+      id: string;
+      name: string;
+      startingCapital: number;
+      portfolios: Array<{
+        id: string;
+        userId: string;
+        cashBalance: number;
+        startingCash: number;
+        holdings: Array<{ symbol: string; quantity: number; avgPrice: number }>;
+      }>;
+    },
+  ) {
+    const scored = await this.scoreLeaguePortfolios(league);
     scored.sort((a, b) => b.total - a.total);
 
     for (let i = 0; i < scored.length; i++) {
@@ -330,9 +389,13 @@ export class LeaguesService {
         await this.gamification.onLeagueFinishedTop3(row.userId);
       }
 
-      if (rank === 1) await this.badges.awardLeagueChampion(row.userId);
-      else if (rank === 2 || rank === 3) await this.badges.awardTop3(row.userId);
-      else await this.badges.awardParticipant(row.userId);
+      await this.badges.checkAndAwardBadge(row.userId, BadgeTriggerEvent.LEAGUE_COMPLETED, {
+        leagueId: league.id,
+        portfolioId: row.portfolioId,
+        finalRank: rank,
+        finalPortfolioValue: row.total,
+        startingCash: row.start,
+      });
 
       await this.notifications.create(
         row.userId,

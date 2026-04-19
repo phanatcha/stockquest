@@ -1,5 +1,6 @@
-import { PrismaClient, QuestCategory, BadgeTrigger } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { seedDummyQuests } from './seeders/dummy-quests';
+import { seedBadges } from './seeders/badges.seed';
 
 const prisma = new PrismaClient();
 
@@ -110,77 +111,8 @@ async function main() {
     update: { prerequisiteQuizId: quizTier3.id },
   });
 
-  const badges = [
-    {
-      name: 'First Trade',
-      description: 'Execute your first trade',
-      iconId: 'first-trade',
-      category: QuestCategory.ACTION_STRATEGY,
-      trigger: BadgeTrigger.FIRST_TRADE,
-    },
-    {
-      name: 'Diversified',
-      description: 'Hold 5+ different stocks at once',
-      iconId: 'diversified',
-      category: QuestCategory.ACTION_STRATEGY,
-      trigger: BadgeTrigger.DIVERSIFIED,
-    },
-    {
-      name: 'League Champion',
-      description: 'Finish 1st in any league',
-      iconId: 'champion',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.LEAGUE_CHAMPION,
-    },
-    {
-      name: 'Top 3 Finisher',
-      description: 'Finish top 3 in any league',
-      iconId: 'top3',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.TOP_3_FINISHER,
-    },
-    {
-      name: 'League Participant',
-      description: 'Complete any league (outside top 3)',
-      iconId: 'participant',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.LEAGUE_PARTICIPANT,
-    },
-    {
-      name: 'Quiz Master',
-      description: 'Pass 5 quizzes',
-      iconId: 'quiz-master',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.QUIZ_MASTER,
-    },
-    {
-      name: 'Scholar',
-      description: 'Read 10 educational articles',
-      iconId: 'scholar',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.SCHOLAR,
-    },
-    {
-      name: 'League Creator',
-      description: 'Create a league',
-      iconId: 'creator',
-      category: QuestCategory.COMMUNITY_LEARNING,
-      trigger: BadgeTrigger.LEAGUE_CREATOR,
-    },
-  ];
-
-  for (const b of badges) {
-    await prisma.badge.upsert({
-      where: { trigger: b.trigger },
-      create: b,
-      update: {
-        name: b.name,
-        description: b.description,
-        iconId: b.iconId,
-        category: b.category,
-      },
-    });
-  }
+  const badgeCount = await seedBadges(prisma);
+  console.log(`Seeded ${badgeCount} badges.`);
 
   const questCount = await seedDummyQuests(prisma);
   console.log(`Seeded ${questCount} dummy quests.`);
