@@ -59,7 +59,19 @@ export class LeaguesService {
       },
     });
 
+    // League creators should automatically participate in their own league.
+    await this.prisma.portfolio.create({
+      data: {
+        userId: creatorId,
+        leagueId: league.id,
+        cashBalance: league.startingCapital,
+        startingCash: league.startingCapital,
+        portfolioValue: league.startingCapital,
+      },
+    });
+
     await this.gamification.onLeagueCreated(creatorId);
+    await this.gamification.onLeagueJoined(creatorId);
     await this.processLeagueTransitions();
     return league;
   }
@@ -68,9 +80,29 @@ export class LeaguesService {
     await this.processLeagueTransitions();
     return this.prisma.league.findMany({
       where: {
-        endDate: { gt: new Date() },
         isPublic: true,
-        status: { not: LeagueStatus.CANCELLED },
+      },
+      orderBy: [{ endDate: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async findMyLeagues(userId: string) {
+    await this.processLeagueTransitions();
+    return this.prisma.league.findMany({
+      where: {
+        portfolios: {
+          some: { userId },
+        },
+      },
+      orderBy: [{ status: 'asc' }, { endDate: 'asc' }],
+      include: {
+        portfolios: {
+          include: {
+            user: {
+              select: { username: true, name: true },
+            },
+          },
+        },
       },
     });
   }
@@ -99,12 +131,16 @@ export class LeaguesService {
     }
 
     const allSymbols = [
-      ...new Set(league.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol))),
+      ...new Set(
+        league.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
+      ),
     ];
     const quotes = allSymbols.length
       ? await this.marketService.getBatchQuotes(allSymbols)
       : [];
-    const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]));
+    const priceMap = new Map<string, number>(
+      quotes.map((q) => [q.symbol, q.price] as const),
+    );
 
     const participants = league.portfolios.map((p) => {
       const holdingsValue = p.holdings.reduce((sum, h) => {
@@ -113,8 +149,7 @@ export class LeaguesService {
       }, 0);
       const portfolioTotalValue = p.cashBalance + holdingsValue;
       const start = p.startingCash || league.startingCapital;
-      const pct =
-        start > 0 ? ((portfolioTotalValue - start) / start) * 100 : 0;
+      const pct = start > 0 ? ((portfolioTotalValue - start) / start) * 100 : 0;
       return {
         portfolioId: p.id,
         username: p.user.username,
@@ -145,7 +180,9 @@ export class LeaguesService {
     }
 
     if (league.portfolios.length > 0 && new Date(league.endDate) > new Date()) {
-      throw new BadRequestException('Cannot delete active league with participants');
+      throw new BadRequestException(
+        'Cannot delete active league with participants',
+      );
     }
 
     return this.prisma.league.delete({
@@ -172,10 +209,14 @@ export class LeaguesService {
     }
 
     if (league.portfolios.length >= league.maxParticipants) {
-      throw new BadRequestException('League is full - maximum participants reached.');
+      throw new BadRequestException(
+        'League is full - maximum participants reached.',
+      );
     }
 
-    const existingPortfolio = league.portfolios.find((p) => p.userId === userId);
+    const existingPortfolio = league.portfolios.find(
+      (p) => p.userId === userId,
+    );
 
     if (existingPortfolio) {
       throw new ConflictException('User already joined this league');
@@ -247,7 +288,7 @@ export class LeaguesService {
             `League "${league.name}" is now ACTIVE. Trading is open.`,
           );
         }
-      } else {
+      } else if (new Date(league.endDate) <= now) {
         await this.prisma.league.update({
           where: { id: league.id },
           data: { status: LeagueStatus.CANCELLED },
@@ -290,9 +331,13 @@ export class LeaguesService {
     });
 
     for (const league of active) {
-      const start = league.startDate ? new Date(league.startDate) : league.createdAt;
+      const start = league.startDate
+        ? new Date(league.startDate)
+        : league.createdAt;
       const end = new Date(league.endDate);
-      const midTime = new Date(start.getTime() + (end.getTime() - start.getTime()) / 2);
+      const midTime = new Date(
+        start.getTime() + (end.getTime() - start.getTime()) / 2,
+      );
       if (now < midTime) continue;
 
       const exists = await this.prisma.leagueSnapshot.findFirst({
@@ -319,26 +364,28 @@ export class LeaguesService {
     }
   }
 
-  private async scoreLeaguePortfolios(
-    league: {
+  private async scoreLeaguePortfolios(league: {
+    id: string;
+    startingCapital: number;
+    portfolios: Array<{
       id: string;
-      startingCapital: number;
-      portfolios: Array<{
-        id: string;
-        userId: string;
-        cashBalance: number;
-        startingCash: number;
-        holdings: Array<{ symbol: string; quantity: number; avgPrice: number }>;
-      }>;
-    },
-  ) {
+      userId: string;
+      cashBalance: number;
+      startingCash: number;
+      holdings: Array<{ symbol: string; quantity: number; avgPrice: number }>;
+    }>;
+  }) {
     const allSymbols = [
-      ...new Set(league.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol))),
+      ...new Set(
+        league.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
+      ),
     ];
     const quotes = allSymbols.length
       ? await this.marketService.getBatchQuotes(allSymbols)
       : [];
-    const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]));
+    const priceMap = new Map<string, number>(
+      quotes.map((q) => [q.symbol, q.price] as const),
+    );
 
     return league.portfolios.map((p) => {
       const hv = p.holdings.reduce((s, h) => {
@@ -351,20 +398,18 @@ export class LeaguesService {
     });
   }
 
-  private async completeLeague(
-    league: {
+  private async completeLeague(league: {
+    id: string;
+    name: string;
+    startingCapital: number;
+    portfolios: Array<{
       id: string;
-      name: string;
-      startingCapital: number;
-      portfolios: Array<{
-        id: string;
-        userId: string;
-        cashBalance: number;
-        startingCash: number;
-        holdings: Array<{ symbol: string; quantity: number; avgPrice: number }>;
-      }>;
-    },
-  ) {
+      userId: string;
+      cashBalance: number;
+      startingCash: number;
+      holdings: Array<{ symbol: string; quantity: number; avgPrice: number }>;
+    }>;
+  }) {
     const scored = await this.scoreLeaguePortfolios(league);
     scored.sort((a, b) => b.total - a.total);
 
@@ -389,13 +434,17 @@ export class LeaguesService {
         await this.gamification.onLeagueFinishedTop3(row.userId);
       }
 
-      await this.badges.checkAndAwardBadge(row.userId, BadgeTriggerEvent.LEAGUE_COMPLETED, {
-        leagueId: league.id,
-        portfolioId: row.portfolioId,
-        finalRank: rank,
-        finalPortfolioValue: row.total,
-        startingCash: row.start,
-      });
+      await this.badges.checkAndAwardBadge(
+        row.userId,
+        BadgeTriggerEvent.LEAGUE_COMPLETED,
+        {
+          leagueId: league.id,
+          portfolioId: row.portfolioId,
+          finalRank: rank,
+          finalPortfolioValue: row.total,
+          startingCash: row.start,
+        },
+      );
 
       await this.notifications.create(
         row.userId,

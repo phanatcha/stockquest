@@ -23,10 +23,17 @@ export class LearningStreakService {
     milestoneXpAwarded: number;
   }> {
     const today = utcDay(new Date());
-    let row = await this.prisma.learningStreak.findUnique({ where: { userId } });
+    let row = await this.prisma.learningStreak.findUnique({
+      where: { userId },
+    });
     if (!row) {
       row = await this.prisma.learningStreak.create({
-        data: { userId, currentStreak: 0, longestStreak: 0, lastActivityDate: null },
+        data: {
+          userId,
+          currentStreak: 0,
+          longestStreak: 0,
+          lastActivityDate: null,
+        },
       });
     }
 
@@ -36,7 +43,11 @@ export class LearningStreakService {
     let milestoneXpAwarded = 0;
 
     if (last === today) {
-      return { currentStreak: current, longestStreak: longest, milestoneXpAwarded: 0 };
+      return {
+        currentStreak: current,
+        longestStreak: longest,
+        milestoneXpAwarded: 0,
+      };
     }
 
     if (!last) {
@@ -82,14 +93,25 @@ export class LearningStreakService {
       milestoneXpAwarded += m.xp;
     }
 
-    return { currentStreak: current, longestStreak: longest, milestoneXpAwarded };
+    return {
+      currentStreak: current,
+      longestStreak: longest,
+      milestoneXpAwarded,
+    };
   }
 
   async getForUser(userId: string) {
-    let row = await this.prisma.learningStreak.findUnique({ where: { userId } });
+    let row = await this.prisma.learningStreak.findUnique({
+      where: { userId },
+    });
     if (!row) {
       row = await this.prisma.learningStreak.create({
-        data: { userId, currentStreak: 0, longestStreak: 0, lastActivityDate: null },
+        data: {
+          userId,
+          currentStreak: 0,
+          longestStreak: 0,
+          lastActivityDate: null,
+        },
       });
     }
     return row;

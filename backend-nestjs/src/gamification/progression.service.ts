@@ -36,7 +36,11 @@ export class ProgressionService {
     return Math.floor(sum);
   }
 
-  computeLevelFromTotalXp(totalXp: number, baseXp: number, exponent: number): number {
+  computeLevelFromTotalXp(
+    totalXp: number,
+    baseXp: number,
+    exponent: number,
+  ): number {
     let level = 1;
     let acc = 0;
     while (true) {
@@ -53,10 +57,16 @@ export class ProgressionService {
     amount: number,
   ): Promise<{ newLevel: number; leveledUp: boolean; totalXp: number }> {
     const cfg = await this.getConfig();
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const oldLevel = user.level;
     const totalXp = user.totalXp + amount;
-    const newLevel = this.computeLevelFromTotalXp(totalXp, cfg.baseXp, cfg.exponent);
+    const newLevel = this.computeLevelFromTotalXp(
+      totalXp,
+      cfg.baseXp,
+      cfg.exponent,
+    );
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -95,7 +105,9 @@ export class ProgressionService {
     newTier?: number;
     pending?: 'xp' | 'quiz';
   }> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const nextTier = user.tier + 1;
     const tierCfg = await this.prisma.tierConfig.findUnique({
       where: { tier: nextTier },
@@ -123,11 +135,15 @@ export class ProgressionService {
         },
       });
       await this.questsService.assignEligibleQuests(userId);
-      await this.badgesService.checkAndAwardBadge(userId, BadgeTriggerEvent.TIER_UPGRADED, {
-        upgraded: true,
-        newTier: nextTier,
-        previousTier: user.tier,
-      });
+      await this.badgesService.checkAndAwardBadge(
+        userId,
+        BadgeTriggerEvent.TIER_UPGRADED,
+        {
+          upgraded: true,
+          newTier: nextTier,
+          previousTier: user.tier,
+        },
+      );
       return { upgraded: true, newTier: nextTier };
     }
 
@@ -139,7 +155,9 @@ export class ProgressionService {
   }
 
   async getTierStatus(userId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const nextTier = user.tier + 1;
     const tierCfg = await this.prisma.tierConfig.findUnique({
       where: { tier: nextTier },

@@ -28,7 +28,9 @@ export class QuestsService {
   ) {}
 
   async assignEligibleQuests(userId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const quests = await this.prisma.quest.findMany({
       where: {
         OR: [{ expiry: null }, { expiry: { gt: new Date() } }],
@@ -65,12 +67,22 @@ export class QuestsService {
       }
 
       await this.prisma.userQuest.create({
-        data: { userId, questId: q.id, progress: 0, status: UserQuestStatus.ACTIVE },
+        data: {
+          userId,
+          questId: q.id,
+          progress: 0,
+          status: UserQuestStatus.ACTIVE,
+        },
       });
     }
   }
 
-  async applyEvent(userId: string, action: QuestActionType, delta: number, meta?: { portfolioId?: string }) {
+  async applyEvent(
+    userId: string,
+    action: QuestActionType,
+    delta: number,
+    meta?: { portfolioId?: string },
+  ) {
     const userQuests = await this.prisma.userQuest.findMany({
       where: {
         userId,
@@ -82,7 +94,10 @@ export class QuestsService {
 
     for (const uq of userQuests) {
       let progress: number;
-      if (action === QuestActionType.PORTFOLIO_DIVERSIFIED && meta?.portfolioId) {
+      if (
+        action === QuestActionType.PORTFOLIO_DIVERSIFIED &&
+        meta?.portfolioId
+      ) {
         const distinct = await this.prisma.holding.groupBy({
           by: ['symbol'],
           where: { portfolioId: meta.portfolioId },
@@ -157,7 +172,11 @@ export class QuestsService {
       });
     }
 
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.QUEST_COMPLETED, {});
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.QUEST_COMPLETED,
+      {},
+    );
 
     return { ok: true, xp: uq.quest.xpReward, barley: uq.quest.barleyReward };
   }

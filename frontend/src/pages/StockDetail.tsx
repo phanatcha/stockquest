@@ -5,10 +5,28 @@ import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 import { useMode } from '../context/ModeContext';
 import { getApiBase } from '../config/api';
 
+type MarketHistoryPoint = {
+  date: string;
+  price: number;
+};
+
+type StockQuote = {
+  price: number;
+  name?: string;
+  change: number;
+  changePercent: number;
+};
+
+type PortfolioResponse = {
+  id: string;
+  cashBalance: number;
+};
+
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const { isLiveMarket, accentColor } = useMode();
+  const unitLabel = isLiveMarket ? 'USD' : 'BARLEY';
   const [orderMode, setOrderMode] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState('market');
   const [shares, setShares] = useState('');
@@ -18,9 +36,9 @@ const StockDetail = () => {
   const [stockName, setStockName] = useState<string>('');
   const [priceChange, setPriceChange] = useState<number>(0);
   const [priceChangePct, setPriceChangePct] = useState<number>(0);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<Array<{ time: string; price: number }>>([]);
   
-  const [portfolio, setPortfolio] = useState<any>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [orderStatus, setOrderStatus] = useState('');
   const [loadingMarket, setLoadingMarket] = useState(true);
 
@@ -33,15 +51,15 @@ const StockDetail = () => {
           ]);
           
           if (quoteRes.ok) {
-             const quote = await quoteRes.json();
+             const quote: StockQuote = await quoteRes.json();
              setCurrentPrice(quote.price);
              setStockName(quote.name || symbol);
              setPriceChange(quote.change);
              setPriceChangePct(quote.changePercent);
           }
           if (histRes.ok) {
-             const hist = await histRes.json();
-             setChartData(hist.map((point: any) => ({
+             const hist: MarketHistoryPoint[] = await histRes.json();
+             setChartData(hist.map((point) => ({
                  time: new Date(point.date).toLocaleDateString(),
                  price: point.price
              })));
@@ -109,8 +127,9 @@ const StockDetail = () => {
       });
       if (refresh.ok) setPortfolio(await refresh.json());
       
-    } catch (err: any) {
-      setOrderStatus('Error: ' + err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setOrderStatus('Error: ' + message);
     }
   };
 
@@ -262,12 +281,12 @@ const StockDetail = () => {
                     {/* Estimated Cost calculation */}
                     <div className="flex justify-between items-center mt-2 pt-4 border-t border-zinc-800 border-dashed">
                        <label className="text-sm font-bold text-white uppercase tracking-widest">Est. {orderMode === 'buy' ? 'Cost' : 'Credit'}</label>
-                       <span className="text-2xl font-black text-white">${estimatedCost}</span>
+                       <span className="text-2xl font-black text-white">{unitLabel} {estimatedCost}</span>
                     </div>
 
                     <p className="text-xs text-zinc-500 text-center font-medium mt-2 mb-2">
                       Available Buying Power: <strong className="text-zinc-300">
-                        {portfolio ? `$${portfolio.cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Loading...'}
+                        {portfolio ? `${unitLabel} ${portfolio.cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Loading...'}
                       </strong>
                     </p>
 

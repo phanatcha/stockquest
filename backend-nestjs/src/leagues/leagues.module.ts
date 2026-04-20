@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { LeaguesService } from './leagues.service';
 import { LeaguesController } from './leagues.controller';
@@ -10,4 +9,4 @@ import { GamificationModule } from '../gamification/gamification.module';
   controllers: [LeaguesController],
   providers: [LeaguesService],
 })
-export class LeaguesModule { }
+export class LeaguesModule {}

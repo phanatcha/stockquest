@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
@@ -11,6 +10,6 @@ import { GamificationModule } from '../gamification/gamification.module';
   imports: [MarketModule, PortfoliosModule, GamificationModule],
   controllers: [OrdersController],
   providers: [OrdersService, MarketStatusService],
-  exports: [OrdersService]
+  exports: [OrdersService],
 })
-export class OrdersModule { }
+export class OrdersModule {}

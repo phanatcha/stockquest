@@ -45,12 +45,18 @@ export class LearnController {
   }
 
   @Get('articles/:id')
-  article(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+  article(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
     return this.learn.getArticle(req.user.userId, id);
   }
 
   @Post('articles/:id/start')
-  startArticle(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+  startArticle(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
     return this.learn.startArticle(req.user.userId, id);
   }
 
@@ -89,12 +95,18 @@ export class LearnController {
   }
 
   @Get('courses/:id')
-  course(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+  course(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
     return this.learn.getCourse(req.user.userId, id);
   }
 
   @Post('courses/:id/start')
-  startCourse(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+  startCourse(
+    @Request() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
     return this.learn.startCourse(req.user.userId, id);
   }
 

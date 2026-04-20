@@ -53,7 +53,9 @@ export class QuizzesService {
   }
 
   async listQuizzesWithUserState(userId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const quizzes = await this.listQuizzes();
     const attempts = await this.prisma.quizAttempt.findMany({
       where: { userId },
@@ -100,7 +102,9 @@ export class QuizzesService {
       throw new BadRequestException('Answer every question');
     }
 
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (user.tier < quiz.tierRequirement) {
       throw new ForbiddenException('Your tier is too low for this quiz');
     }
@@ -119,7 +123,9 @@ export class QuizzesService {
     });
     if (lastAttempt && !lastAttempt.passed) {
       const cooldownMs = quiz.cooldownMinutes * 60 * 1000;
-      const eligibleAt = new Date(lastAttempt.submittedAt.getTime() + cooldownMs);
+      const eligibleAt = new Date(
+        lastAttempt.submittedAt.getTime() + cooldownMs,
+      );
       if (new Date() < eligibleAt) {
         throw new BadRequestException(
           `Retry available after ${eligibleAt.toISOString()}`,
@@ -168,8 +174,11 @@ export class QuizzesService {
 
     let xpEarned = 0;
     let barleyEarned = 0;
-    let streak: { currentStreak: number; longestStreak: number; milestoneXpAwarded: number } | null =
-      null;
+    let streak: {
+      currentStreak: number;
+      longestStreak: number;
+      milestoneXpAwarded: number;
+    } | null = null;
 
     if (passed && !hadPassedBefore) {
       const baseXp = quiz.isTierPrerequisite ? 100 : 50;

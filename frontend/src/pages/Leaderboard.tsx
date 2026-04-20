@@ -1,27 +1,212 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Trophy, TrendingUp, Medal, Plus, Users, ArrowRight } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { getApiBase } from '../config/api';
+
+type LeaderRow = {
+  rank: number;
+  name: string;
+  value: number;
+  returnPct: number;
+};
+
+type League = {
+  id: string;
+  name: string;
+  status: 'LOBBY' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  endDate: string;
+  startingCapital: number;
+  portfolios: Array<{ id: string }>;
+};
+
+type LeagueParticipant = {
+  portfolioId: string;
+  username: string;
+  name: string;
+  portfolioTotalValue: number;
+  pctGainLoss: number;
+  liveRank: number;
+};
+
+type LeagueDetails = {
+  id: string;
+  name: string;
+  participants: LeagueParticipant[];
+};
 
 const Leaderboard = () => {
-  const [activeTab, setActiveTab] = useState<'Global' | 'Friends' | 'Leagues'>('Global');
-  
-  // Mock data for Global Leaderboard
-  const [leaders] = useState([
-    { rank: 1, name: 'GordonGekko', value: 154320.50, returnPct: 54.32 },
-    { rank: 2, name: 'WolfOfWallSt', value: 142100.00, returnPct: 42.10 },
-    { rank: 3, name: 'DiamondHands', value: 135800.75, returnPct: 35.80 },
-    { rank: 4, name: 'ToTheMoon', value: 128450.20, returnPct: 28.45 },
-    { rank: 5, name: 'RetailTrader99', value: 115200.00, returnPct: 15.20 },
-    { rank: 6, name: 'ValueInvestor', value: 108500.00, returnPct: 8.50 },
-    { rank: 7, name: 'DayTraderPro', value: 104200.00, returnPct: 4.20 },
-    { rank: 42, name: 'You (Sir User)', value: 98000.00, returnPct: -2.00, isCurrentUser: true }
-  ]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab: 'Global' | 'Friends' | 'Leagues' =
+    tabParam === 'Friends' || tabParam === 'Leagues' ? tabParam : 'Global';
+  const [leaders, setLeaders] = useState<LeaderRow[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [myLeagues, setMyLeagues] = useState<League[]>([]);
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
+  const [leagueDetails, setLeagueDetails] = useState<LeagueDetails | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newLeagueName, setNewLeagueName] = useState('');
+  const [newLeagueDescription, setNewLeagueDescription] = useState('');
+  const [newLeagueEndDate, setNewLeagueEndDate] = useState('');
+  const [newLeagueParticipants, setNewLeagueParticipants] = useState(10);
+  const [actionMessage, setActionMessage] = useState('');
 
-  // Mock data for Leagues
-  const [leagues] = useState([
-    { id: '1', name: 'Tech Titans', members: 142, prizePool: '$500K Virtual', endsIn: '12 Days' },
-    { id: '2', name: 'Dividend Kings', members: 89, prizePool: '$250K Virtual', endsIn: '5 Days' },
-    { id: '3', name: 'YOLO Traders', members: 450, prizePool: '$1M Virtual', endsIn: '24 Hours' }
-  ]);
+  const token = localStorage.getItem('token');
+
+  const fetchLeagues = async () => {
+    const res = await fetch(`${getApiBase()}/leagues`);
+    if (!res.ok) return;
+    const data: League[] = await res.json();
+    setLeagues(data);
+  };
+
+  const fetchMyLeagues = async () => {
+    if (!token) {
+      setMyLeagues([]);
+      return;
+    }
+    const res = await fetch(`${getApiBase()}/leagues/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      setMyLeagues([]);
+      return;
+    }
+    const data: League[] = await res.json();
+    setMyLeagues(data);
+  };
+
+  useEffect(() => {
+    void fetch(`${getApiBase()}/leagues`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: League[]) => setLeagues(data))
+      .catch(() => setLeagues([]));
+
+    void fetch(`${getApiBase()}/leagues`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then(async (allLeagues: League[]) => {
+        const detailResponses: Array<LeagueDetails | null> = await Promise.all(
+          allLeagues.slice(0, 8).map((league) =>
+            fetch(`${getApiBase()}/leagues/${league.id}`).then((r) =>
+              r.ok ? (r.json() as Promise<LeagueDetails>) : null,
+            ),
+          ),
+        );
+
+        const rows = detailResponses
+          .flatMap((detail) => detail?.participants ?? [])
+          .map((p) => ({
+            name: p.username || p.name || 'Unknown',
+            value: p.portfolioTotalValue ?? 0,
+            returnPct: p.pctGainLoss ?? 0,
+          }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 20)
+          .map((row, index) => ({ ...row, rank: index + 1 }));
+        setLeaders(rows);
+      })
+      .catch(() => setLeaders([]));
+    if (token) {
+      void fetch(`${getApiBase()}/leagues/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: League[]) => setMyLeagues(data))
+        .catch(() => setMyLeagues([]));
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+    fetch(`${getApiBase()}/leagues/${selectedLeagueId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: LeagueDetails | null) => setLeagueDetails(d))
+      .catch(() => setLeagueDetails(null));
+  }, [selectedLeagueId]);
+
+  const filteredLeaders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return leaders;
+    return leaders.filter((leader) => leader.name.toLowerCase().includes(q));
+  }, [leaders, search]);
+
+  const filteredLeagues = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return leagues;
+    return leagues.filter((league) => league.name.toLowerCase().includes(q));
+  }, [leagues, search]);
+
+  const onChangeTab = (tab: 'Global' | 'Friends' | 'Leagues') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      if (search.trim()) next.set('search', search.trim());
+      return next;
+    });
+  };
+
+  const onJoinLeague = async (leagueId: string) => {
+    if (!token) {
+      setActionMessage('Please sign in first.');
+      return;
+    }
+    const res = await fetch(`${getApiBase()}/leagues/${leagueId}/join`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActionMessage(data.message || 'Unable to join league.');
+      return;
+    }
+    setActionMessage('Joined league successfully.');
+    await fetchLeagues();
+    await fetchMyLeagues();
+    setSelectedLeagueId(leagueId);
+  };
+
+  const onCreateLeague = async () => {
+    if (!token) {
+      setActionMessage('Please sign in first.');
+      return;
+    }
+    if (!newLeagueName.trim() || !newLeagueEndDate) {
+      setActionMessage('League name and end date are required.');
+      return;
+    }
+    setCreating(true);
+    const res = await fetch(`${getApiBase()}/leagues`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: newLeagueName.trim(),
+        description: newLeagueDescription.trim() || undefined,
+        startingCapital: 10000,
+        minParticipants: 2,
+        maxParticipants: Math.max(2, newLeagueParticipants),
+        endDate: new Date(newLeagueEndDate).toISOString(),
+        isPublic: true,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActionMessage(data.message || 'Failed to create league.');
+      setCreating(false);
+      return;
+    }
+    setActionMessage('League created.');
+    setNewLeagueName('');
+    setNewLeagueDescription('');
+    setNewLeagueEndDate('');
+    setNewLeagueParticipants(10);
+    setCreating(false);
+    await fetchLeagues();
+    await fetchMyLeagues();
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 items-center">
@@ -42,19 +227,19 @@ const Leaderboard = () => {
          {/* Navigation Pills */}
          <div className="flex justify-center gap-2 mb-8 mt-4">
             <button 
-              onClick={() => setActiveTab('Global')}
+              onClick={() => onChangeTab('Global')}
               className={`px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest border transition-colors ${activeTab === 'Global' ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-white'}`}
             >
               Global
             </button>
             <button 
-              onClick={() => setActiveTab('Friends')}
+              onClick={() => onChangeTab('Friends')}
               className={`px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest border transition-colors ${activeTab === 'Friends' ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-white'}`}
             >
               Friends
             </button>
             <button 
-              onClick={() => setActiveTab('Leagues')}
+              onClick={() => onChangeTab('Leagues')}
               className={`px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest border transition-colors ${activeTab === 'Leagues' ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-white'}`}
             >
               Leagues
@@ -70,11 +255,11 @@ const Leaderboard = () => {
              </div>
 
          <div className="flex flex-col pb-4">
-            {leaders.map((leader) => (
+            {filteredLeaders.map((leader) => (
               <div 
                 key={leader.rank} 
                 className={`grid grid-cols-12 gap-4 px-8 py-4 items-center border-b border-zinc-800/30 transition-colors
-                  ${leader.isCurrentUser ? 'bg-indigo-900/20 border-indigo-500/30' : 'hover:bg-zinc-800/30'}
+                  hover:bg-zinc-800/30
                 `}
               >
                  <div className="col-span-2 flex justify-center items-center">
@@ -86,17 +271,17 @@ const Leaderboard = () => {
                  
                  <div className="col-span-5 flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg ${
-                      leader.isCurrentUser ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'
+                      'bg-zinc-800 text-zinc-400'
                     }`}>
                        {leader.name.charAt(0)}
                     </div>
-                    <span className={`font-bold tracking-wide ${leader.isCurrentUser ? 'text-indigo-300' : 'text-zinc-200'}`}>
+                    <span className="font-bold tracking-wide text-zinc-200">
                       {leader.name}
                     </span>
                  </div>
 
                  <div className="col-span-5 flex flex-col items-end justify-center">
-                    <span className={`text-lg font-black ${leader.isCurrentUser ? 'text-white' : 'text-zinc-300'}`}>
+                    <span className="text-lg font-black text-zinc-300">
                       ${leader.value.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     </span>
                     <span className={`text-xs font-bold flex items-center gap-1 ${leader.returnPct >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -117,39 +302,154 @@ const Leaderboard = () => {
                     <h2 className="text-2xl font-black text-white tracking-widest uppercase italic">Create a League</h2>
                     <p className="text-indigo-300 text-sm mt-1">Challenge your friends in a custom trading arena.</p>
                  </div>
-                 <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-xs tracking-widest py-3 px-6 rounded-full shadow-lg transition-all flex items-center gap-2">
-                    <Plus className="w-4 h-4"/> New League
-                 </button>
+                 <div className="flex flex-col gap-2 w-full max-w-md">
+                    <input
+                      value={newLeagueName}
+                      onChange={(e) => setNewLeagueName(e.target.value)}
+                      className="bg-[#111] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                      placeholder="League name"
+                    />
+                    <input
+                      value={newLeagueDescription}
+                      onChange={(e) => setNewLeagueDescription(e.target.value)}
+                      className="bg-[#111] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                      placeholder="Description (optional)"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        value={newLeagueEndDate}
+                        onChange={(e) => setNewLeagueEndDate(e.target.value)}
+                        className="bg-[#111] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white flex-1"
+                      />
+                      <input
+                        type="number"
+                        min={2}
+                        value={newLeagueParticipants}
+                        onChange={(e) => setNewLeagueParticipants(Number(e.target.value))}
+                        className="bg-[#111] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white w-28"
+                        placeholder="Max"
+                      />
+                    </div>
+                    <button
+                      disabled={creating}
+                      onClick={onCreateLeague}
+                      className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-black uppercase text-xs tracking-widest py-3 px-6 rounded-full shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4"/> {creating ? 'Creating...' : 'New League'}
+                    </button>
+                 </div>
+              </div>
+
+              <div>
+                 <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">My Joined Leagues</h3>
+                 {myLeagues.length === 0 ? (
+                   <div className="mb-6 bg-[#111] border border-zinc-800 rounded-xl p-4 text-sm text-zinc-500">
+                     You have not joined any leagues yet.
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                     {myLeagues.map((league) => (
+                       <div
+                         key={`my-${league.id}`}
+                         className="bg-[#1b1b1b] border border-indigo-700/40 p-4 rounded-xl flex items-center justify-between"
+                       >
+                         <div>
+                           <p className="text-white font-bold">{league.name}</p>
+                           <p className="text-xs text-zinc-400">
+                             {league.status} • Ends {new Date(league.endDate).toLocaleDateString()}
+                           </p>
+                         </div>
+                         <button
+                           onClick={() => setSelectedLeagueId(league.id)}
+                           className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full"
+                         >
+                           Open
+                         </button>
+                       </div>
+                     ))}
+                   </div>
+                 )}
               </div>
 
               <div>
                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">Discover Active Leagues</h3>
+                 <input
+                   value={search}
+                   onChange={(e) => {
+                     const next = e.target.value;
+                     setSearch(next);
+                     setSearchParams((prev) => {
+                       const params = new URLSearchParams(prev);
+                       params.set('tab', 'Leagues');
+                       if (next.trim()) params.set('search', next.trim());
+                       else params.delete('search');
+                       return params;
+                     });
+                   }}
+                   className="w-full mb-4 bg-[#111] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                   placeholder="Search leagues..."
+                 />
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {leagues.map((league) => (
+                    {filteredLeagues.map((league) => (
                        <div key={league.id} className="bg-[#222] border border-zinc-800 hover:border-zinc-600 transition-colors p-5 rounded-xl flex flex-col gap-4">
                           <div className="flex justify-between items-start">
                              <h4 className="text-xl font-bold text-white tracking-wide">{league.name}</h4>
-                             <span className="text-xs font-bold bg-zinc-800 text-zinc-400 px-2 py-1 rounded">Ends: {league.endsIn}</span>
+                             <span className="text-xs font-bold bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
+                               {league.status} • Ends {new Date(league.endDate).toLocaleDateString()}
+                             </span>
                           </div>
                           
                           <div className="flex justify-between items-end mt-2">
                              <div className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-zinc-500">Prize / Status</span>
-                                <span className="text-sm font-black text-indigo-400">{league.prizePool}</span>
+                                <span className="text-sm font-black text-indigo-400">Start: {league.startingCapital.toLocaleString()} BARLEY</span>
                              </div>
                              
                              <div className="flex items-center gap-4">
                                 <span className="flex items-center gap-1 text-xs text-zinc-400 font-bold">
-                                   <Users className="w-4 h-4"/> {league.members}
+                                   <Users className="w-4 h-4"/> {league.portfolios.length}
                                 </span>
-                                <button className="bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full flex items-center gap-1 transition-colors">
+                                <button
+                                  onClick={() => onJoinLeague(league.id)}
+                                  className="bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full flex items-center gap-1 transition-colors"
+                                >
                                   Join <ArrowRight className="w-3 h-3"/>
+                                </button>
+                                <button
+                                  onClick={() => setSelectedLeagueId(league.id)}
+                                  className="bg-zinc-800 hover:bg-zinc-700 text-white font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full"
+                                >
+                                  View
                                 </button>
                              </div>
                           </div>
                        </div>
                     ))}
                  </div>
+                 {leagueDetails && (
+                   <div className="mt-6 bg-[#111] border border-zinc-800 rounded-xl p-4">
+                     <h4 className="text-sm font-bold text-zinc-300 mb-3 uppercase tracking-widest">
+                       {leagueDetails.name} Live Ranking
+                     </h4>
+                     <div className="space-y-2">
+                       {(leagueDetails.participants || []).slice(0, 10).map((participant) => (
+                         <div
+                           key={participant.portfolioId}
+                           className="flex items-center justify-between bg-[#1d1d1d] rounded-lg px-3 py-2"
+                         >
+                           <span className="text-zinc-300 text-sm font-medium">
+                             #{participant.liveRank} {participant.username}
+                           </span>
+                           <span className="text-white text-sm font-bold">
+                             {participant.portfolioTotalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                           </span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+                 {actionMessage && <p className="text-xs text-zinc-400 mt-4">{actionMessage}</p>}
               </div>
            </div>
          )}

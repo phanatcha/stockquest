@@ -51,7 +51,8 @@ export class GamificationController {
     const exponent = cfg?.exponent ?? 1.2;
     const nextLevelCost = baseXp * Math.pow(user.level, exponent);
     const xpIntoLevel =
-      user.totalXp - this.progression.totalXpForLevel(user.level, baseXp, exponent);
+      user.totalXp -
+      this.progression.totalXpForLevel(user.level, baseXp, exponent);
     return {
       user,
       tierStatus,

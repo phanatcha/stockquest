@@ -23,16 +23,25 @@ export class GamificationEventsService {
       by: ['symbol'],
       where: { portfolioId },
     });
-    await this.quests.applyEvent(userId, QuestActionType.PORTFOLIO_DIVERSIFIED, distinct.length, {
-      portfolioId,
-    });
+    await this.quests.applyEvent(
+      userId,
+      QuestActionType.PORTFOLIO_DIVERSIFIED,
+      distinct.length,
+      {
+        portfolioId,
+      },
+    );
 
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.TRADE_EXECUTED, {
-      portfolioId,
-      orderType: meta.orderType,
-      symbol: meta.symbol,
-      sellAt: meta.orderType === 'SELL' ? meta.sellAt : undefined,
-    });
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.TRADE_EXECUTED,
+      {
+        portfolioId,
+        orderType: meta.orderType,
+        symbol: meta.symbol,
+        sellAt: meta.orderType === 'SELL' ? meta.sellAt : undefined,
+      },
+    );
   }
 
   async onLeagueJoined(userId: string) {
@@ -41,16 +50,28 @@ export class GamificationEventsService {
 
   async onLeagueCreated(userId: string) {
     await this.quests.applyEvent(userId, QuestActionType.LEAGUE_CREATED, 1);
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.LEAGUE_CREATED, {});
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.LEAGUE_CREATED,
+      {},
+    );
   }
 
   async onLeagueFinishedTop3(userId: string) {
-    await this.quests.applyEvent(userId, QuestActionType.LEAGUE_FINISHED_TOP3, 1);
+    await this.quests.applyEvent(
+      userId,
+      QuestActionType.LEAGUE_FINISHED_TOP3,
+      1,
+    );
   }
 
   async onQuizPassed(userId: string, score: number) {
     await this.quests.applyEvent(userId, QuestActionType.QUIZ_PASSED, 1);
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.QUIZ_PASSED, { score });
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.QUIZ_PASSED,
+      { score },
+    );
   }
 
   /** First-time completion of a catalog article (quests + Scholar-style badges). */
@@ -60,11 +81,19 @@ export class GamificationEventsService {
       data: { articlesReadCount: { increment: 1 } },
     });
     await this.quests.applyEvent(userId, QuestActionType.ARTICLE_READ, 1);
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.ARTICLE_READ, {});
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.ARTICLE_READ,
+      {},
+    );
   }
 
   async onCourseCompleted(userId: string) {
     await this.quests.applyEvent(userId, QuestActionType.COURSE_COMPLETED, 1);
-    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.COURSE_COMPLETED, {});
+    await this.badges.checkAndAwardBadge(
+      userId,
+      BadgeTriggerEvent.COURSE_COMPLETED,
+      {},
+    );
   }
 }

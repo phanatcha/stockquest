@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { PortfoliosService } from './portfolios.service';
 import { PortfoliosController } from './portfolios.controller';
@@ -8,6 +7,6 @@ import { MarketModule } from '../market/market.module';
   imports: [MarketModule],
   controllers: [PortfoliosController],
   providers: [PortfoliosService],
-  exports: [PortfoliosService]
+  exports: [PortfoliosService],
 })
-export class PortfoliosModule { }
+export class PortfoliosModule {}

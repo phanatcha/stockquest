@@ -1,14 +1,17 @@
 
-import { useEffect, useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Bell, User, Trophy, BookOpen, Briefcase, TrendingUp, ScrollText } from 'lucide-react';
 import { useMode } from '../context/ModeContext';
 import { getApiBase } from '../config/api';
 
 const AppLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isLiveMarket, toggleMode } = useMode();
   const [badgeDot, setBadgeDot] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [buyingPower, setBuyingPower] = useState<number | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -26,6 +29,37 @@ const AppLayout = () => {
     window.addEventListener('stockquest-badges-ack', onAck);
     return () => window.removeEventListener('stockquest-badges-ack', onAck);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    fetch(`${getApiBase()}/portfolios/mine?live=${isLiveMarket}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setBuyingPower(typeof d?.cashBalance === 'number' ? d.cashBalance : null))
+      .catch(() => setBuyingPower(null));
+  }, [isLiveMarket, location.pathname]);
+
+  const handleSearchSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const query = searchText.trim();
+    if (!query) return;
+
+    // Try stock symbol lookup first.
+    try {
+      const quoteRes = await fetch(`${getApiBase()}/market/quote/${encodeURIComponent(query.toUpperCase())}`);
+      if (quoteRes.ok) {
+        navigate(`/stock/${query.toUpperCase()}`);
+        return;
+      }
+    } catch {
+      // Fall through to league/global search.
+    }
+
+    navigate(`/leaderboard?tab=Leagues&search=${encodeURIComponent(query)}`);
+  };
   
   const navItems = [
     { name: 'Market', path: '/dashboard', icon: TrendingUp },
@@ -66,16 +100,18 @@ const AppLayout = () => {
 
         {/* Search Bar */}
         <div className="hidden md:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
+          <form className="relative w-full" onSubmit={handleSearchSubmit}>
             <input 
                type="text" 
                placeholder="Search symbols, users, leagues..." 
+               value={searchText}
+               onChange={(e) => setSearchText(e.target.value)}
                className={`w-full text-white rounded-full py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 border border-transparent transition-all ${
                  isLiveMarket ? 'bg-green-700/50 placeholder-green-200 focus:ring-white' : 'bg-[#2a2a2a] focus:border-red-600 focus:ring-1 focus:ring-red-600'
                }`}
             />
             <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isLiveMarket ? 'text-green-200' : 'text-gray-400'}`} />
-          </div>
+          </form>
         </div>
 
         {/* Right Icons */}
@@ -131,7 +167,11 @@ const AppLayout = () => {
           <div className="mt-auto px-4 md:px-6 mb-4 hidden md:block">
              <div className="bg-[#2a2a2a] rounded-xl p-4 border border-[#3a3a3a]">
                 <h4 className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Buying Power</h4>
-                <p className="text-xl font-black text-white">$100,000.00</p>
+                <p className="text-xl font-black text-white">
+                  {buyingPower === null
+                    ? 'Loading...'
+                    : `${isLiveMarket ? 'USD' : 'BARLEY'} ${buyingPower.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </p>
              </div>
           </div>
         </aside>

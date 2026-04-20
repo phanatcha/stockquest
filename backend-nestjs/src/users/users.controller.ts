@@ -5,11 +5,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
-    constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) {}
 
-    @UseGuards(JwtAuthGuard)
-    @Post('onboarding')
-    async onboarding(@Request() req, @Body() dto: OnboardingDto) {
-        return this.usersService.completeOnboarding(req.user.id || req.user.sub, dto);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('onboarding')
+  async onboarding(@Request() req, @Body() dto: OnboardingDto) {
+    return this.usersService.completeOnboarding(
+      req.user.id || req.user.sub,
+      dto,
+    );
+  }
 }

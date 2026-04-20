@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#111111" />
+  <path
+    d="M103 26c3 10 3 24-4 34 2 6 8 11 8 19 0 12-10 23-27 23-9 0-19 5-28 5-13 0-24-12-24-30 0-10 3-19 9-24-5-5-7-14-5-24 10 2 20 10 25 15 9-5 19-5 24-9 4-3 8-5 22-9z"
+    fill="#dc2626"
+  />
+  <text x="64" y="116" text-anchor="middle" fill="#f4f4f5" font-size="18" font-family="Arial, sans-serif" font-weight="700">
+    SQ
+  </text>
+</svg>

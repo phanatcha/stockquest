@@ -38,7 +38,9 @@ export class LearnService {
 
   async getHome(userId: string) {
     await this.ensureLearnConfig();
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const tierStatus = await this.progression.getTierStatus(userId);
     const streak = await this.streak.getForUser(userId);
 
@@ -138,8 +140,12 @@ export class LearnService {
       orderBy: { publishedAt: 'desc' },
     });
 
-    const recommended: Array<{ kind: 'article' | 'course'; id: string; title: string; subtitle: string }> =
-      [];
+    const recommended: Array<{
+      kind: 'article' | 'course';
+      id: string;
+      title: string;
+      subtitle: string;
+    }> = [];
     for (const art of unreadArticles) {
       if (recommended.length >= 6) break;
       recommended.push({
@@ -167,7 +173,10 @@ export class LearnService {
       orderBy: { publishedAt: 'desc' },
       take: 4,
     });
-    const recent = [...recentArticles.map((x) => ({ kind: 'article' as const, ...x })), ...recentCourses.map((x) => ({ kind: 'course' as const, ...x }))]
+    const recent = [
+      ...recentArticles.map((x) => ({ kind: 'article' as const, ...x })),
+      ...recentCourses.map((x) => ({ kind: 'course' as const, ...x })),
+    ]
       .sort((u, v) => v.publishedAt.getTime() - u.publishedAt.getTime())
       .slice(0, 4);
 
@@ -197,7 +206,9 @@ export class LearnService {
       sort?: string;
     },
   ) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const where: Prisma.ArticleWhereInput = {};
     if (q.search) {
       where.OR = [
@@ -208,7 +219,9 @@ export class LearnService {
     if (q.category) where.category = q.category;
     if (q.tier != null) where.tierRequirement = q.tier;
 
-    let orderBy: Prisma.ArticleOrderByWithRelationInput = { publishedAt: 'desc' };
+    let orderBy: Prisma.ArticleOrderByWithRelationInput = {
+      publishedAt: 'desc',
+    };
     if (q.sort === 'oldest') orderBy = { publishedAt: 'asc' };
     else if (q.sort === 'shortest') orderBy = { readTimeMinutes: 'asc' };
     else if (q.sort === 'longest') orderBy = { readTimeMinutes: 'desc' };
@@ -233,8 +246,12 @@ export class LearnService {
   }
 
   async getArticle(userId: string, articleId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const article = await this.prisma.article.findUnique({ where: { id: articleId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+    });
     if (!article) throw new NotFoundException('Article not found');
     const locked = user.tier < article.tierRequirement;
     if (locked) {
@@ -284,14 +301,20 @@ export class LearnService {
     body: { secondsOnPage: number; scrollReachedBottom: boolean },
   ) {
     await this.ensureLearnConfig();
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const article = await this.prisma.article.findUnique({ where: { id: articleId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+    });
     if (!article) throw new NotFoundException('Article not found');
     if (user.tier < article.tierRequirement) {
       throw new ForbiddenException('Tier locked');
     }
 
-    const cfg = await this.prisma.learnConfig.findUnique({ where: { id: 'default' } });
+    const cfg = await this.prisma.learnConfig.findUnique({
+      where: { id: 'default' },
+    });
     const frac = cfg?.articleMinReadFraction ?? 0.6;
     const minSeconds = Math.ceil(article.readTimeMinutes * 60 * frac);
     const timeOk = body.secondsOnPage >= minSeconds;
@@ -345,8 +368,12 @@ export class LearnService {
   }
 
   async relatedArticles(userId: string, articleId: string, take = 4) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const art = await this.prisma.article.findUnique({ where: { id: articleId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const art = await this.prisma.article.findUnique({
+      where: { id: articleId },
+    });
     if (!art) throw new NotFoundException('Article not found');
     const completed = await this.prisma.userArticle.findMany({
       where: { userId, status: UserArticleStatus.COMPLETED },
@@ -364,8 +391,13 @@ export class LearnService {
     });
   }
 
-  async listCourses(userId: string, q: { category?: ArticleCategory; status?: string; tier?: number }) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  async listCourses(
+    userId: string,
+    q: { category?: ArticleCategory; status?: string; tier?: number },
+  ) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const where: Prisma.CourseWhereInput = {};
     if (q.category) where.category = q.category;
     if (q.tier != null) where.tierRequirement = q.tier;
@@ -404,9 +436,12 @@ export class LearnService {
       const done = uc?.completedLessonIds.length ?? 0;
       const pct = total ? Math.round((done / total) * 100) : 0;
       const st = uc?.status ?? UserCourseStatus.NOT_STARTED;
-      if (q.status === 'NOT_STARTED' && st !== UserCourseStatus.NOT_STARTED) continue;
-      if (q.status === 'IN_PROGRESS' && st !== UserCourseStatus.IN_PROGRESS) continue;
-      if (q.status === 'COMPLETED' && st !== UserCourseStatus.COMPLETED) continue;
+      if (q.status === 'NOT_STARTED' && st !== UserCourseStatus.NOT_STARTED)
+        continue;
+      if (q.status === 'IN_PROGRESS' && st !== UserCourseStatus.IN_PROGRESS)
+        continue;
+      if (q.status === 'COMPLETED' && st !== UserCourseStatus.COMPLETED)
+        continue;
       rows.push({
         id: c.id,
         title: c.title,
@@ -429,7 +464,9 @@ export class LearnService {
   }
 
   async getCourse(userId: string, courseId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       include: { lessons: { orderBy: { orderIndex: 'asc' } } },
@@ -547,7 +584,11 @@ export class LearnService {
     return uc;
   }
 
-  async completeCourseLesson(userId: string, courseId: string, lessonId: string) {
+  async completeCourseLesson(
+    userId: string,
+    courseId: string,
+    lessonId: string,
+  ) {
     const detail = await this.getCourse(userId, courseId);
     if (detail.locked) throw new ForbiddenException('Tier locked');
     let uc = detail.userCourse;
