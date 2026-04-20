@@ -145,7 +145,6 @@ export class QuestsService {
     });
 
     await this.progression.grantXp(userId, uq.quest.xpReward);
-    await this.progression.checkTierUpgrade(userId);
 
     if (uq.quest.repeatable) {
       await this.prisma.userQuest.update({

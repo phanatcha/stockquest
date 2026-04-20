@@ -14,7 +14,6 @@ import { QuestsService } from './quests.service';
 import { QuizzesService } from './quizzes.service';
 import { NotificationsService } from './notifications.service';
 import { BadgesService } from './badges.service';
-import { GamificationEventsService } from './gamification-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('gamification')
@@ -26,7 +25,6 @@ export class GamificationController {
     private readonly quizzesService: QuizzesService,
     private readonly notifications: NotificationsService,
     private readonly badgesService: BadgesService,
-    private readonly events: GamificationEventsService,
   ) {}
 
   @Get('me')
@@ -147,13 +145,5 @@ export class GamificationController {
     @Param('id') id: string,
   ) {
     return this.notifications.markRead(req.user.userId, id);
-  }
-
-  /** Marks an educational article as read (quest + Scholar badge progress). */
-  @Post('articles/read')
-  @UseGuards(JwtAuthGuard)
-  async articleRead(@Request() req: { user: { userId: string } }) {
-    await this.events.onArticleRead(req.user.userId);
-    return { ok: true };
   }
 }

@@ -53,12 +53,18 @@ export class GamificationEventsService {
     await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.QUIZ_PASSED, { score });
   }
 
-  async onArticleRead(userId: string) {
+  /** First-time completion of a catalog article (quests + Scholar-style badges). */
+  async onArticleCompletedFirstTime(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },
       data: { articlesReadCount: { increment: 1 } },
     });
     await this.quests.applyEvent(userId, QuestActionType.ARTICLE_READ, 1);
     await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.ARTICLE_READ, {});
+  }
+
+  async onCourseCompleted(userId: string) {
+    await this.quests.applyEvent(userId, QuestActionType.COURSE_COMPLETED, 1);
+    await this.badges.checkAndAwardBadge(userId, BadgeTriggerEvent.COURSE_COMPLETED, {});
   }
 }

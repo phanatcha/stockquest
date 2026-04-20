@@ -63,6 +63,8 @@ export class ProgressionService {
       data: { totalXp, level: newLevel },
     });
 
+    await this.checkTierUpgrade(userId);
+
     return {
       newLevel,
       leveledUp: newLevel > oldLevel,
@@ -146,6 +148,11 @@ export class ProgressionService {
       return {
         tier: user.tier,
         nextTier: null,
+        nextTierName: undefined as string | undefined,
+        minLevelForNextTier: undefined as number | undefined,
+        prerequisiteQuizId: null as string | null,
+        levelOk: true,
+        quizOk: true,
         pending: null as 'xp' | 'quiz' | null,
       };
     }
@@ -165,6 +172,7 @@ export class ProgressionService {
       nextTier: nextTier,
       nextTierName: tierCfg.name,
       minLevelForNextTier: tierCfg.minLevel,
+      prerequisiteQuizId: tierCfg.prerequisiteQuizId,
       levelOk,
       quizOk,
       pending,

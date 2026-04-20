@@ -140,6 +140,17 @@ export const DUMMY_QUESTS: DummyQuestSeed[] = [
     tierRequirement: 1,
   },
   {
+    title: 'Course graduate',
+    description: 'Complete any Academy course',
+    category: QuestCategory.COMMUNITY_LEARNING,
+    actionType: QuestActionType.COURSE_COMPLETED,
+    targetValue: 1,
+    xpReward: 90,
+    barleyReward: 20,
+    repeatable: true,
+    tierRequirement: 1,
+  },
+  {
     title: 'Badge collector (starter)',
     description: 'Earn any achievement badge',
     category: QuestCategory.COMMUNITY_LEARNING,

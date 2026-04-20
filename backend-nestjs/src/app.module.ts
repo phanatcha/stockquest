@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { MarketModule } from './market/market.module';
 import { AdminModule } from './admin/admin.module';
 import { GamificationModule } from './gamification/gamification.module';
+import { LearnModule } from './learn/learn.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { GamificationModule } from './gamification/gamification.module';
     MarketModule,
     AdminModule,
     GamificationModule,
+    LearnModule,
     LeaguesModule,
     PortfoliosModule,
     OrdersModule,

@@ -7,12 +7,14 @@ import { BadgesService } from './badges.service';
 import { GamificationEventsService } from './gamification-events.service';
 import { QuizzesService } from './quizzes.service';
 import { GamificationController } from './gamification.controller';
+import { LearningStreakService } from './learning-streak.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [GamificationController],
   providers: [
     ProgressionService,
+    LearningStreakService,
     NotificationsService,
     QuestsService,
     BadgesService,
@@ -21,6 +23,7 @@ import { GamificationController } from './gamification.controller';
   ],
   exports: [
     ProgressionService,
+    LearningStreakService,
     NotificationsService,
     QuestsService,
     BadgesService,

@@ -31,7 +31,7 @@ function App() {
              <Route path="/portfolio" element={<Portfolio />} />
              <Route path="/leaderboard" element={<Leaderboard />} />
              <Route path="/quests" element={<Quest />} />
-             <Route path="/learn" element={<Learn />} />
+             <Route path="/learn/*" element={<Learn />} />
              <Route path="/stock/:symbol" element={<StockDetail />} />
           </Route>
 

@@ -30,6 +30,10 @@ model User {
   quizAttempts        QuizAttempt[]
   userBadges          UserBadge[]
   notifications       Notification[]
+  userArticles        UserArticle[]
+  userCourses         UserCourse[]
+  learningStreak      LearningStreak?
+  streakMilestones    StreakMilestone[]
 }
 
 enum Role {
@@ -144,6 +148,7 @@ enum QuestActionType {
   LEAGUE_FINISHED_TOP3
   ARTICLE_READ
   QUIZ_PASSED
+  COURSE_COMPLETED
   BADGE_EARNED
   PORTFOLIO_DIVERSIFIED
   LEAGUE_CREATED
@@ -186,17 +191,142 @@ model UserQuest {
   @@unique([userId, questId])
 }
 
+// --- Learn: articles & courses ---
+enum ArticleCategory {
+  BASICS
+  STRATEGY
+  RISK_MANAGEMENT
+  MARKET_ANALYSIS
+  PSYCHOLOGY
+}
+
+enum UserArticleStatus {
+  UNREAD
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum UserCourseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum CourseLessonType {
+  ARTICLE
+  QUIZ
+}
+
+model LearnConfig {
+  id                     String @id @default("default")
+  // Fraction of estimated read minutes (e.g. 0.6) when scroll-to-bottom is not used
+  articleMinReadFraction Float  @default(0.6)
+}
+
+model Article {
+  id                String          @id @default(uuid())
+  title             String
+  category          ArticleCategory
+  thumbnailKey      String          @default("chart")
+  author            String
+  readTimeMinutes   Int
+  body              String
+  tierRequirement   Int             @default(1)
+  tags              String[]
+  publishedAt       DateTime        @default(now())
+  isFeatured        Boolean         @default(false)
+  userArticles      UserArticle[]
+  createdAt         DateTime        @default(now())
+}
+
+model UserArticle {
+  id           String            @id @default(uuid())
+  userId       String
+  articleId    String
+  status       UserArticleStatus @default(UNREAD)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  lastAccessed DateTime          @default(now())
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article      Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+}
+
+model Course {
+  id                 String         @id @default(uuid())
+  title              String
+  description        String
+  category           ArticleCategory
+  thumbnailKey       String         @default("course")
+  tierRequirement    Int            @default(1)
+  xpReward           Int            @default(150)
+  barleyReward       Int            @default(75)
+  estimatedMinutes   Int            @default(30)
+  publishedAt        DateTime       @default(now())
+  lessons            CourseLesson[]
+  userCourses        UserCourse[]
+  createdAt          DateTime       @default(now())
+}
+
+model CourseLesson {
+  id           String           @id @default(uuid())
+  courseId     String
+  orderIndex   Int
+  lessonType   CourseLessonType
+  referenceId  String
+  title        String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, orderIndex])
+}
+
+model UserCourse {
+  id                   String           @id @default(uuid())
+  userId               String
+  courseId             String
+  status               UserCourseStatus @default(NOT_STARTED)
+  completedLessonIds   String[]
+  completedAt          DateTime?
+  lastAccessed         DateTime         @default(now())
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course               Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model LearningStreak {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastActivityDate DateTime?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StreakMilestone {
+  id             String   @id @default(uuid())
+  userId         String
+  milestoneDays  Int
+  awardedAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, milestoneDays])
+}
+
 // --- Quizzes ---
 model Quiz {
-  id              String         @id @default(uuid())
-  title           String
-  description     String?
-  tierUnlocked    Int
-  passScore       Float
-  cooldownMinutes Int            @default(60)
-  questions       QuizQuestion[]
-  attempts        QuizAttempt[]
-  tierConfigs     TierConfig[]
+  id                  String         @id @default(uuid())
+  title               String
+  description         String?
+  tierUnlocked        Int
+  tierRequirement     Int            @default(1)
+  isTierPrerequisite  Boolean        @default(true)
+  passScore           Float
+  cooldownMinutes     Int            @default(60)
+  questions           QuizQuestion[]
+  attempts            QuizAttempt[]
+  tierConfigs         TierConfig[]
 }
 
 model QuizQuestion {
@@ -206,6 +336,7 @@ model QuizQuestion {
   options      String[]
   correctIndex Int
   points       Int      @default(1)
+  explanation  String?
   quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
@@ -215,6 +346,7 @@ model QuizAttempt {
   quizId      String
   score       Float
   passed      Boolean
+  answers     Int[]    @default([])
   submittedAt DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
@@ -235,6 +367,7 @@ enum BadgeTriggerEvent {
   QUEST_COMPLETED
   ARTICLE_READ
   QUIZ_PASSED
+  COURSE_COMPLETED
   TIER_UPGRADED
 }
 
