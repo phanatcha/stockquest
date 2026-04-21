@@ -1,19 +1,44 @@
-
-import { IsNotEmpty, IsString, IsNumber, IsDateString, IsBoolean, IsOptional, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsDateString,
+  IsBoolean,
+  IsOptional,
+  Min,
+} from 'class-validator';
 
 export class CreateLeagueDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsNumber()
-    @Min(0)
-    startingCapital: number;
+  @IsNumber()
+  @Min(0)
+  startingCapital: number;
 
-    @IsDateString()
-    endDate: string;
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
 
-    @IsBoolean()
-    @IsOptional()
-    isPublic?: boolean;
+  @IsDateString()
+  endDate: string;
+
+  @IsNumber()
+  @Min(2)
+  @IsOptional()
+  maxParticipants?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsNumber()
+  @Min(2)
+  @IsOptional()
+  minParticipants?: number;
 }

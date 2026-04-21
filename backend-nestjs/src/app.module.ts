@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -9,6 +8,10 @@ import { OrdersModule } from './orders/orders.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { MarketModule } from './market/market.module';
+import { AdminModule } from './admin/admin.module';
+import { GamificationModule } from './gamification/gamification.module';
+import { LearnModule } from './learn/learn.module';
 
 @Module({
   imports: [
@@ -19,6 +22,10 @@ import { AuthModule } from './auth/auth.module';
 
     PrismaModule,
     AuthModule,
+    MarketModule,
+    AdminModule,
+    GamificationModule,
+    LearnModule,
     LeaguesModule,
     PortfoliosModule,
     OrdersModule,
@@ -27,4 +34,4 @@ import { AuthModule } from './auth/auth.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

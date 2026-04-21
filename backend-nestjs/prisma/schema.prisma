@@ -1,22 +1,39 @@
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  name      String
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  portfolios Portfolio[]
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  username            String   @unique
+  name                String
+  password            String
+  role                Role     @default(USER)
+  createdAt           DateTime @default(now())
+  onboardingCompleted Boolean  @default(false)
+  riskTolerance       String?
+  level               Int      @default(1)
+  tier                Int      @default(1)
+  totalXp             Int      @default(0)
+  barleyBalance       Int      @default(0)
+  articlesReadCount   Int      @default(0)
+  portfolios          Portfolio[]
+  riskProfile         RiskProfile?
+  createdLeagues      League[] @relation("LeagueCreator")
+  userQuests          UserQuest[]
+  quizAttempts        QuizAttempt[]
+  userBadges          UserBadge[]
+  notifications       Notification[]
+  userArticles        UserArticle[]
+  userCourses         UserCourse[]
+  learningStreak      LearningStreak?
+  streakMilestones    StreakMilestone[]
 }
 
 enum Role {
@@ -24,29 +41,62 @@ enum Role {
   ADMIN
 }
 
+model RiskProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  age           Int
+  goal          String
+  reactionDrop  String
+  horizon       String
+  riskTolerance String
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+enum LeagueStatus {
+  LOBBY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model League {
-  id              String   @id @default(uuid())
+  id              String       @id @default(uuid())
   name            String
+  description     String?
+  creatorId       String?
+  creator         User?        @relation("LeagueCreator", fields: [creatorId], references: [id])
   startingCapital Float
+  startDate       DateTime?    @default(now())
   endDate         DateTime
-  isPublic        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  maxParticipants Int          @default(100)
+  minParticipants Int          @default(2)
+  status          LeagueStatus @default(LOBBY)
+  isPublic        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
   portfolios      Portfolio[]
+  snapshots       LeagueSnapshot[]
 }
 
 model Portfolio {
-  id          String   @id @default(uuid())
-  userId      String
-  leagueId    String
-  cashBalance Float
-  user        User     @relation(fields: [userId], references: [id])
-  league      League   @relation(fields: [leagueId], references: [id])
-  holdings    Holding[]
-  orders      Order[]
+  id              String   @id @default(uuid())
+  userId          String
+  leagueId        String
+  cashBalance     Float
+  startingCash    Float    @default(0)
+  portfolioValue  Float    @default(0)
+  pointsEarned    Int      @default(0)
+  xpEarned        Int      @default(0)
+  finalRank       Int?
+  user            User     @relation(fields: [userId], references: [id])
+  league          League   @relation(fields: [leagueId], references: [id])
+  holdings        Holding[]
+  orders          Order[]
+  snapshotEntries LeagueSnapshotEntry[]
 }
 
 model Holding {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   portfolioId String
   symbol      String
   quantity    Int
@@ -68,4 +118,325 @@ model Order {
 enum OrderType {
   BUY
   SELL
+}
+
+// --- Gamification: progression (singleton row) ---
+model ProgressionConfig {
+  id       String @id @default("default")
+  baseXp   Float  @default(100)
+  exponent Float  @default(1.2)
+}
+
+// --- Tier gating ---
+model TierConfig {
+  tier               Int    @id
+  name               String
+  minLevel           Int
+  prerequisiteQuizId String?
+  prerequisiteQuiz   Quiz?  @relation(fields: [prerequisiteQuizId], references: [id])
+}
+
+// --- Quests ---
+enum QuestCategory {
+  ACTION_STRATEGY
+  COMMUNITY_LEARNING
+}
+
+enum QuestActionType {
+  TRADE_EXECUTED
+  LEAGUE_JOINED
+  LEAGUE_FINISHED_TOP3
+  ARTICLE_READ
+  QUIZ_PASSED
+  COURSE_COMPLETED
+  BADGE_EARNED
+  PORTFOLIO_DIVERSIFIED
+  LEAGUE_CREATED
+}
+
+enum UserQuestStatus {
+  ACTIVE
+  COMPLETED
+  CLAIMED
+  EXPIRED
+}
+
+model Quest {
+  id              String          @id @default(uuid())
+  title           String
+  description     String
+  category        QuestCategory
+  actionType      QuestActionType
+  targetValue     Int
+  xpReward        Int
+  barleyReward    Int
+  repeatable      Boolean         @default(false)
+  tierRequirement Int             @default(1)
+  expiry          DateTime?
+  autoClaim       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  userQuests      UserQuest[]
+}
+
+model UserQuest {
+  id        String          @id @default(uuid())
+  userId    String
+  questId   String
+  progress  Int             @default(0)
+  status    UserQuestStatus @default(ACTIVE)
+  claimedAt DateTime?
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest     Quest           @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId])
+}
+
+// --- Learn: articles & courses ---
+enum ArticleCategory {
+  BASICS
+  STRATEGY
+  RISK_MANAGEMENT
+  MARKET_ANALYSIS
+  PSYCHOLOGY
+}
+
+enum UserArticleStatus {
+  UNREAD
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum UserCourseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum CourseLessonType {
+  ARTICLE
+  QUIZ
+}
+
+model LearnConfig {
+  id                     String @id @default("default")
+  // Fraction of estimated read minutes (e.g. 0.6) when scroll-to-bottom is not used
+  articleMinReadFraction Float  @default(0.6)
+}
+
+model Article {
+  id                String          @id @default(uuid())
+  title             String
+  category          ArticleCategory
+  thumbnailKey      String          @default("chart")
+  author            String
+  readTimeMinutes   Int
+  body              String
+  tierRequirement   Int             @default(1)
+  tags              String[]
+  publishedAt       DateTime        @default(now())
+  isFeatured        Boolean         @default(false)
+  userArticles      UserArticle[]
+  createdAt         DateTime        @default(now())
+}
+
+model UserArticle {
+  id           String            @id @default(uuid())
+  userId       String
+  articleId    String
+  status       UserArticleStatus @default(UNREAD)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  lastAccessed DateTime          @default(now())
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article      Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+}
+
+model Course {
+  id                 String         @id @default(uuid())
+  title              String
+  description        String
+  category           ArticleCategory
+  thumbnailKey       String         @default("course")
+  tierRequirement    Int            @default(1)
+  xpReward           Int            @default(150)
+  barleyReward       Int            @default(75)
+  estimatedMinutes   Int            @default(30)
+  publishedAt        DateTime       @default(now())
+  lessons            CourseLesson[]
+  userCourses        UserCourse[]
+  createdAt          DateTime       @default(now())
+}
+
+model CourseLesson {
+  id           String           @id @default(uuid())
+  courseId     String
+  orderIndex   Int
+  lessonType   CourseLessonType
+  referenceId  String
+  title        String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, orderIndex])
+}
+
+model UserCourse {
+  id                   String           @id @default(uuid())
+  userId               String
+  courseId             String
+  status               UserCourseStatus @default(NOT_STARTED)
+  completedLessonIds   String[]
+  completedAt          DateTime?
+  lastAccessed         DateTime         @default(now())
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course               Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model LearningStreak {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastActivityDate DateTime?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StreakMilestone {
+  id             String   @id @default(uuid())
+  userId         String
+  milestoneDays  Int
+  awardedAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, milestoneDays])
+}
+
+// --- Quizzes ---
+model Quiz {
+  id                  String         @id @default(uuid())
+  title               String
+  description         String?
+  tierUnlocked        Int
+  tierRequirement     Int            @default(1)
+  isTierPrerequisite  Boolean        @default(true)
+  passScore           Float
+  cooldownMinutes     Int            @default(60)
+  questions           QuizQuestion[]
+  attempts            QuizAttempt[]
+  tierConfigs         TierConfig[]
+}
+
+model QuizQuestion {
+  id           String @id @default(uuid())
+  quizId       String
+  text         String
+  options      String[]
+  correctIndex Int
+  points       Int      @default(1)
+  explanation  String?
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id          String   @id @default(uuid())
+  userId      String
+  quizId      String
+  score       Float
+  passed      Boolean
+  answers     Int[]    @default([])
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+// --- Badges ---
+enum BadgeRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum BadgeTriggerEvent {
+  TRADE_EXECUTED
+  LEAGUE_CREATED
+  LEAGUE_COMPLETED
+  QUEST_COMPLETED
+  ARTICLE_READ
+  QUIZ_PASSED
+  COURSE_COMPLETED
+  TIER_UPGRADED
+}
+
+model Badge {
+  id            String            @id @default(uuid())
+  code          String            @unique
+  name          String
+  description   String
+  iconKey       String
+  category      QuestCategory
+  triggerEvent  BadgeTriggerEvent
+  threshold     Int?
+  conditionText String
+  rarity        BadgeRarity
+  userBadges    UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+  seen     Boolean  @default(false)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+enum SnapshotType {
+  MIDPOINT
+}
+
+model LeagueSnapshot {
+  id             String                @id @default(uuid())
+  leagueId       String
+  league         League                @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  snapshotType   SnapshotType
+  takenAt        DateTime              @default(now())
+  entries        LeagueSnapshotEntry[]
+}
+
+model LeagueSnapshotEntry {
+  id               String         @id @default(uuid())
+  snapshotId       String
+  snapshot         LeagueSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  portfolioId      String
+  rank             Int
+  portfolioValue   Float
+  portfolio        Portfolio      @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+}
+
+// --- Notifications ---
+enum NotificationType {
+  QUEST_COMPLETED
+  QUIZ_RESULT
+  TIER_UPGRADE
+  BADGE_EARNED
+  LEAGUE_STATE
+  LEAGUE_REWARDS
+  LEAGUE_CANCELLED
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  type      NotificationType
+  message   String
+  read      Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
