@@ -129,8 +129,8 @@ export const BADGE_DEFINITIONS: BadgeSeedRow[] = [
     rarity: BadgeRarity.LEGENDARY,
   },
   {
-    code: 'bull_run',
-    name: 'Bull Run',
+    code: 'bull_ring',
+    name: 'Bull Ring',
     description: 'Gain 20%+ on portfolio value in a single league.',
     iconKey: '📈',
     category: QuestCategory.ACTION_STRATEGY,

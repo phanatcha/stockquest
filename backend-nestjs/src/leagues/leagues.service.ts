@@ -27,7 +27,7 @@ const XP_BY_RANK: Record<number, number> = {
 /** Persistent sandbox leagues — leaving would break market/portfolio auto-provision. */
 const GLOBAL_MARKET_LEAGUE_NAMES = new Set([
   'Live Market Global',
-  'The Bull Run Global',
+  'The BullRing Global',
 ]);
 
 @Injectable()

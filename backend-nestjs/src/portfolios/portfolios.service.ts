@@ -81,7 +81,7 @@ export class PortfoliosService {
   }
 
   async findMine(userId: string, isLive: boolean) {
-    const leagueName = isLive ? 'Live Market Global' : 'The Bull Run Global';
+    const leagueName = isLive ? 'Live Market Global' : 'The BullRing Global';
     const defaultStartingCapital = isLive ? 100 : 10000;
 
     let portfolio = await this.prisma.portfolio.findFirst({

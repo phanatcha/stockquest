@@ -63,7 +63,7 @@ function normalizeLeaguesPayload(data: unknown): League[] {
 
 const GLOBAL_MARKET_LEAGUE_NAMES = new Set([
   'Live Market Global',
-  'The Bull Run Global',
+  'The BullRing Global',
 ]);
 
 function isGlobalMarketLeague(name: string): boolean {
@@ -354,7 +354,7 @@ const Leaderboard = () => {
         <div className="relative z-10 flex flex-col items-center justify-center">
           <Trophy className="w-16 h-16 text-yellow-500 mb-4 drop-shadow-xl" />
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-widest uppercase italic drop-shadow-md">
-            The Bull Run
+            The BullRing
           </h1>
           <p className="text-red-200 mt-2 font-bold tracking-widest text-sm">Global Rankings</p>
         </div>
