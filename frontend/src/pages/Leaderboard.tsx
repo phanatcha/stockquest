@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Trophy, TrendingUp, Medal, Plus, Users, ArrowRight } from 'lucide-react';
+import {
+  Trophy,
+  TrendingUp,
+  Medal,
+  Plus,
+  Users,
+  ArrowRight,
+  LogOut,
+} from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { getApiBase } from '../config/api';
 
@@ -16,8 +24,51 @@ type League = {
   status: 'LOBBY' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   endDate: string;
   startingCapital: number;
-  portfolios: Array<{ id: string }>;
+  portfolios?: Array<{ id: string }>;
 };
+
+function normalizeLeague(raw: unknown): League | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === 'string' ? o.id : null;
+  const name = typeof o.name === 'string' ? o.name : null;
+  if (!id || !name) return null;
+  const endDate =
+    typeof o.endDate === 'string'
+      ? o.endDate
+      : o.endDate instanceof Date
+        ? o.endDate.toISOString()
+        : '';
+  const status =
+    o.status === 'LOBBY' ||
+    o.status === 'ACTIVE' ||
+    o.status === 'COMPLETED' ||
+    o.status === 'CANCELLED'
+      ? o.status
+      : 'LOBBY';
+  const startingCapital =
+    typeof o.startingCapital === 'number' && !Number.isNaN(o.startingCapital)
+      ? o.startingCapital
+      : 0;
+  const portfolios = Array.isArray(o.portfolios)
+    ? (o.portfolios as Array<{ id: string }>)
+    : [];
+  return { id, name, status, endDate, startingCapital, portfolios };
+}
+
+function normalizeLeaguesPayload(data: unknown): League[] {
+  if (!Array.isArray(data)) return [];
+  return data.map(normalizeLeague).filter((l): l is League => l !== null);
+}
+
+const GLOBAL_MARKET_LEAGUE_NAMES = new Set([
+  'Live Market Global',
+  'The Bull Run Global',
+]);
+
+function isGlobalMarketLeague(name: string): boolean {
+  return GLOBAL_MARKET_LEAGUE_NAMES.has(name);
+}
 
 type LeagueParticipant = {
   portfolioId: string;
@@ -51,13 +102,30 @@ const Leaderboard = () => {
   const [newLeagueEndDate, setNewLeagueEndDate] = useState('');
   const [newLeagueParticipants, setNewLeagueParticipants] = useState(10);
   const [actionMessage, setActionMessage] = useState('');
+  const [leavingId, setLeavingId] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
+
+  const leagueFromUrl = searchParams.get('league');
+  useEffect(() => {
+    if (!leagueFromUrl) return;
+    setSelectedLeagueId(leagueFromUrl);
+    if (tabParam !== 'Leagues') {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('tab', 'Leagues');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [leagueFromUrl, tabParam, setSearchParams]);
 
   const fetchLeagues = async () => {
     const res = await fetch(`${getApiBase()}/leagues`);
     if (!res.ok) return;
-    const data: League[] = await res.json();
+    const data = normalizeLeaguesPayload(await res.json());
     setLeagues(data);
   };
 
@@ -73,19 +141,20 @@ const Leaderboard = () => {
       setMyLeagues([]);
       return;
     }
-    const data: League[] = await res.json();
+    const data = normalizeLeaguesPayload(await res.json());
     setMyLeagues(data);
   };
 
   useEffect(() => {
     void fetch(`${getApiBase()}/leagues`)
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: League[]) => setLeagues(data))
+      .then((data: unknown) => setLeagues(normalizeLeaguesPayload(data)))
       .catch(() => setLeagues([]));
 
     void fetch(`${getApiBase()}/leagues`)
       .then((res) => (res.ok ? res.json() : []))
-      .then(async (allLeagues: League[]) => {
+      .then(async (raw: unknown) => {
+        const allLeagues = normalizeLeaguesPayload(raw);
         const detailResponses: Array<LeagueDetails | null> = await Promise.all(
           allLeagues.slice(0, 8).map((league) =>
             fetch(`${getApiBase()}/leagues/${league.id}`).then((r) =>
@@ -112,7 +181,7 @@ const Leaderboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : []))
-        .then((data: League[]) => setMyLeagues(data))
+        .then((data: unknown) => setMyLeagues(normalizeLeaguesPayload(data)))
         .catch(() => setMyLeagues([]));
     }
   }, [token]);
@@ -121,7 +190,33 @@ const Leaderboard = () => {
     if (!selectedLeagueId) return;
     fetch(`${getApiBase()}/leagues/${selectedLeagueId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: LeagueDetails | null) => setLeagueDetails(d))
+      .then((d: unknown) => {
+        if (!d || typeof d !== 'object') {
+          setLeagueDetails(null);
+          return;
+        }
+        const obj = d as Record<string, unknown>;
+        const id = typeof obj.id === 'string' ? obj.id : '';
+        const name = typeof obj.name === 'string' ? obj.name : 'League';
+        const rawParts = obj.participants;
+        const participants: LeagueParticipant[] = Array.isArray(rawParts)
+          ? rawParts
+              .map((p): LeagueParticipant | null => {
+                if (!p || typeof p !== 'object') return null;
+                const row = p as Record<string, unknown>;
+                return {
+                  portfolioId: String(row.portfolioId ?? ''),
+                  username: String(row.username ?? row.name ?? '?'),
+                  name: String(row.name ?? ''),
+                  portfolioTotalValue: Number(row.portfolioTotalValue) || 0,
+                  pctGainLoss: Number(row.pctGainLoss) || 0,
+                  liveRank: Number(row.liveRank) || 0,
+                };
+              })
+              .filter((p): p is LeagueParticipant => p !== null && p.portfolioId !== '')
+          : [];
+        setLeagueDetails({ id, name, participants });
+      })
       .catch(() => setLeagueDetails(null));
   }, [selectedLeagueId]);
 
@@ -137,6 +232,11 @@ const Leaderboard = () => {
     return leagues.filter((league) => league.name.toLowerCase().includes(q));
   }, [leagues, search]);
 
+  const myLeagueIdSet = useMemo(
+    () => new Set(myLeagues.map((l) => l.id)),
+    [myLeagues],
+  );
+
   const onChangeTab = (tab: 'Global' | 'Friends' | 'Leagues') => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -144,6 +244,43 @@ const Leaderboard = () => {
       if (search.trim()) next.set('search', search.trim());
       return next;
     });
+  };
+
+  const onLeaveLeague = async (leagueId: string, leagueName: string) => {
+    if (!token) {
+      setActionMessage('Please sign in first.');
+      return;
+    }
+    if (isGlobalMarketLeague(leagueName)) {
+      setActionMessage('You cannot leave the global market league.');
+      return;
+    }
+    const ok = window.confirm(
+      `Leave "${leagueName}"? Your portfolio and trade history in this league will be removed.`,
+    );
+    if (!ok) return;
+    setLeavingId(leagueId);
+    setActionMessage('');
+    try {
+      const res = await fetch(`${getApiBase()}/leagues/${leagueId}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionMessage(data.message || 'Unable to leave league.');
+        return;
+      }
+      setActionMessage('You left the league.');
+      if (selectedLeagueId === leagueId) {
+        setSelectedLeagueId('');
+        setLeagueDetails(null);
+      }
+      await fetchLeagues();
+      await fetchMyLeagues();
+    } finally {
+      setLeavingId(null);
+    }
   };
 
   const onJoinLeague = async (leagueId: string) => {
@@ -352,20 +489,42 @@ const Leaderboard = () => {
                      {myLeagues.map((league) => (
                        <div
                          key={`my-${league.id}`}
-                         className="bg-[#1b1b1b] border border-indigo-700/40 p-4 rounded-xl flex items-center justify-between"
+                         className="bg-[#1b1b1b] border border-indigo-700/40 p-4 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                        >
                          <div>
                            <p className="text-white font-bold">{league.name}</p>
                            <p className="text-xs text-zinc-400">
-                             {league.status} • Ends {new Date(league.endDate).toLocaleDateString()}
+                             {league.status} • Ends{' '}
+                             {league.endDate
+                               ? new Date(league.endDate).toLocaleDateString()
+                               : '—'}
                            </p>
+                           {isGlobalMarketLeague(league.name) && (
+                             <p className="text-[10px] text-zinc-500 mt-1">
+                               Default market portfolio — cannot leave
+                             </p>
+                           )}
                          </div>
-                         <button
-                           onClick={() => setSelectedLeagueId(league.id)}
-                           className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full"
-                         >
-                           Open
-                         </button>
+                         <div className="flex flex-wrap gap-2 justify-end">
+                           <button
+                             type="button"
+                             onClick={() => setSelectedLeagueId(league.id)}
+                             className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full"
+                           >
+                             View
+                           </button>
+                           {!isGlobalMarketLeague(league.name) && (
+                             <button
+                               type="button"
+                               disabled={leavingId === league.id}
+                               onClick={() => void onLeaveLeague(league.id, league.name)}
+                               className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full inline-flex items-center gap-1"
+                             >
+                               <LogOut className="w-3 h-3" />
+                               {leavingId === league.id ? '…' : 'Leave'}
+                             </button>
+                           )}
+                         </div>
                        </div>
                      ))}
                    </div>
@@ -396,26 +555,39 @@ const Leaderboard = () => {
                           <div className="flex justify-between items-start">
                              <h4 className="text-xl font-bold text-white tracking-wide">{league.name}</h4>
                              <span className="text-xs font-bold bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
-                               {league.status} • Ends {new Date(league.endDate).toLocaleDateString()}
+                               {league.status} • Ends{' '}
+                               {league.endDate
+                                 ? new Date(league.endDate).toLocaleDateString()
+                                 : '—'}
                              </span>
                           </div>
                           
                           <div className="flex justify-between items-end mt-2">
                              <div className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-zinc-500">Prize / Status</span>
-                                <span className="text-sm font-black text-indigo-400">Start: {league.startingCapital.toLocaleString()} BARLEY</span>
+                                <span className="text-sm font-black text-indigo-400">
+                                  Start: {(league.startingCapital ?? 0).toLocaleString()} BARLEY
+                                </span>
                              </div>
                              
                              <div className="flex items-center gap-4">
                                 <span className="flex items-center gap-1 text-xs text-zinc-400 font-bold">
-                                   <Users className="w-4 h-4"/> {league.portfolios.length}
+                                   <Users className="w-4 h-4"/>{' '}
+                                   {(league.portfolios ?? []).length}
                                 </span>
-                                <button
-                                  onClick={() => onJoinLeague(league.id)}
-                                  className="bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full flex items-center gap-1 transition-colors"
-                                >
-                                  Join <ArrowRight className="w-3 h-3"/>
-                                </button>
+                                {myLeagueIdSet.has(league.id) ? (
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 px-2 py-2">
+                                    Joined
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => void onJoinLeague(league.id)}
+                                    className="bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full flex items-center gap-1 transition-colors"
+                                  >
+                                    Join <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setSelectedLeagueId(league.id)}
                                   className="bg-zinc-800 hover:bg-zinc-700 text-white font-black text-[10px] uppercase tracking-widest py-2 px-4 rounded-full"
@@ -442,7 +614,9 @@ const Leaderboard = () => {
                              #{participant.liveRank} {participant.username}
                            </span>
                            <span className="text-white text-sm font-bold">
-                             {participant.portfolioTotalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                             {(participant.portfolioTotalValue ?? 0).toLocaleString(undefined, {
+                               minimumFractionDigits: 2,
+                             })}
                            </span>
                          </div>
                        ))}

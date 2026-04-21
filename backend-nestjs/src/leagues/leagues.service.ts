@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeagueDto } from './dto/create-league.dto';
@@ -24,6 +23,12 @@ const XP_BY_RANK: Record<number, number> = {
   2: 300,
   3: 150,
 };
+
+/** Persistent sandbox leagues — leaving would break market/portfolio auto-provision. */
+const GLOBAL_MARKET_LEAGUE_NAMES = new Set([
+  'Live Market Global',
+  'The Bull Run Global',
+]);
 
 @Injectable()
 export class LeaguesService {
@@ -73,14 +78,17 @@ export class LeaguesService {
     await this.gamification.onLeagueCreated(creatorId);
     await this.gamification.onLeagueJoined(creatorId);
     await this.processLeagueTransitions();
-    return league;
+    return this.prisma.league.findUniqueOrThrow({ where: { id: league.id } });
   }
 
   async findAllActive() {
     await this.processLeagueTransitions();
+    const now = new Date();
     return this.prisma.league.findMany({
       where: {
         isPublic: true,
+        endDate: { gt: now },
+        status: { in: [LeagueStatus.LOBBY, LeagueStatus.ACTIVE] },
       },
       orderBy: [{ endDate: 'asc' }, { createdAt: 'desc' }],
     });
@@ -219,7 +227,8 @@ export class LeaguesService {
     );
 
     if (existingPortfolio) {
-      throw new ConflictException('User already joined this league');
+      await this.processLeagueTransitions();
+      return existingPortfolio;
     }
 
     const newPortfolio = await this.prisma.portfolio.create({
@@ -235,6 +244,44 @@ export class LeaguesService {
     await this.gamification.onLeagueJoined(userId);
     await this.processLeagueTransitions();
     return newPortfolio;
+  }
+
+  async leave(leagueId: string, userId: string) {
+    const league = await this.prisma.league.findUnique({
+      where: { id: leagueId },
+    });
+    if (!league) {
+      throw new NotFoundException('League not found');
+    }
+    if (GLOBAL_MARKET_LEAGUE_NAMES.has(league.name)) {
+      throw new BadRequestException(
+        'You cannot leave the global market league. It holds your default portfolio.',
+      );
+    }
+
+    const portfolio = await this.prisma.portfolio.findFirst({
+      where: { leagueId, userId },
+    });
+    if (!portfolio) {
+      throw new BadRequestException('You are not a member of this league');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.leagueSnapshotEntry.deleteMany({
+        where: { portfolioId: portfolio.id },
+      });
+      await tx.order.deleteMany({ where: { portfolioId: portfolio.id } });
+      await tx.holding.deleteMany({ where: { portfolioId: portfolio.id } });
+      await tx.portfolio.delete({ where: { id: portfolio.id } });
+    });
+
+    await this.notifications.create(
+      userId,
+      NotificationType.LEAGUE_STATE,
+      `You left the league "${league.name}".`,
+    );
+    await this.processLeagueTransitions();
+    return { ok: true };
   }
 
   async update(id: string, updateLeagueDto: UpdateLeagueDto) {
@@ -273,9 +320,46 @@ export class LeaguesService {
 
     for (const league of lobbyLeagues) {
       const start = league.startDate ? new Date(league.startDate) : new Date(0);
+      const end = new Date(league.endDate);
+      const n = league.portfolios.length;
+
+      // Past end date: never promote to ACTIVE (that would immediately complete and confuse joiners).
+      if (end <= now) {
+        if (n < league.minParticipants) {
+          await this.prisma.league.update({
+            where: { id: league.id },
+            data: { status: LeagueStatus.CANCELLED },
+          });
+          for (const p of league.portfolios) {
+            await this.notifications.create(
+              p.userId,
+              NotificationType.LEAGUE_CANCELLED,
+              `League "${league.name}" was cancelled — not enough players joined before the end.`,
+            );
+          }
+          if (league.creatorId) {
+            await this.notifications.create(
+              league.creatorId,
+              NotificationType.LEAGUE_CANCELLED,
+              `Your league "${league.name}" was cancelled — minimum participants were not met.`,
+            );
+          }
+        } else {
+          await this.prisma.league.update({
+            where: { id: league.id },
+            data: { status: LeagueStatus.ACTIVE },
+          });
+          const full = await this.prisma.league.findUniqueOrThrow({
+            where: { id: league.id },
+            include: { portfolios: { include: { holdings: true } } },
+          });
+          await this.completeLeague(full);
+        }
+        continue;
+      }
+
       if (now < start) continue;
 
-      const n = league.portfolios.length;
       if (n >= league.minParticipants) {
         await this.prisma.league.update({
           where: { id: league.id },
@@ -286,25 +370,6 @@ export class LeaguesService {
             p.userId,
             NotificationType.LEAGUE_STATE,
             `League "${league.name}" is now ACTIVE. Trading is open.`,
-          );
-        }
-      } else if (new Date(league.endDate) <= now) {
-        await this.prisma.league.update({
-          where: { id: league.id },
-          data: { status: LeagueStatus.CANCELLED },
-        });
-        for (const p of league.portfolios) {
-          await this.notifications.create(
-            p.userId,
-            NotificationType.LEAGUE_CANCELLED,
-            `League "${league.name}" was cancelled — not enough players joined before the start.`,
-          );
-        }
-        if (league.creatorId) {
-          await this.notifications.create(
-            league.creatorId,
-            NotificationType.LEAGUE_CANCELLED,
-            `Your league "${league.name}" was cancelled — minimum participants were not met.`,
           );
         }
       }

@@ -58,6 +58,12 @@ export class LeaguesController {
   join(@Param('id') id: string, @Request() req: { user: { userId: string } }) {
     return this.leaguesService.join(id, req.user.userId);
   }
+
+  @Post(':id/leave')
+  @UseGuards(JwtAuthGuard)
+  leave(@Param('id') id: string, @Request() req: { user: { userId: string } }) {
+    return this.leaguesService.leave(id, req.user.userId);
+  }
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
