@@ -82,7 +82,7 @@ const SignIn = () => {
           </div>
 
           {/* Header of Card */}
-          <div className="flex justify-between items-start z-10 w-full mb-12 sm:mb-20">
+          <div className="flex justify-between items-start z-10 w-full mb-6">
             <div className="flex items-center gap-3">
               <img src={unionIcon} alt="Icon" className="w-10 h-10 object-contain opacity-80" />
               <h1 className="text-2xl sm:text-3xl font-black text-[#a3692a] tracking-wider uppercase">
@@ -94,9 +94,9 @@ const SignIn = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-end flex-grow z-10 w-full mb-8 sm:mb-0">
+          <div className="flex flex-col sm:flex-row items-center justify-center flex-grow z-10 w-full gap-8 sm:gap-10">
             {/* Avatar / Portrait */}
-            <div className="w-32 h-32 sm:w-40 sm:h-40 shrink-0 mb-8 sm:mb-8 sm:mr-10 relative left-0 sm:left-4">
+            <div className="w-32 h-32 sm:w-40 sm:h-40 shrink-0">
               <img 
                 src={sirBullImg} 
                 alt="Sir Bull Avatar" 
