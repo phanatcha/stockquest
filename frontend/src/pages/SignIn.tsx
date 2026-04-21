@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiBase } from '../config/api';
-import sirBullImg from '../assets/sirbull.png';
-import unionIcon from '../assets/Union.png';
+import sirBullImg from '../assets/sirbull.svg';
+import unionIcon from '../assets/Union.svg';
 
 const SignIn = () => {
   const navigate = useNavigate();

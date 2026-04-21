@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMode } from '../context/ModeContext';
 import { getApiBase } from '../config/api';
 import { PortfolioBadgesSection } from '../components/PortfolioBadgesSection';
-import sirBullImg from '../assets/sirbull.png';
-import sirMadamImg from '../assets/sirmadam.png';
+import sirBullImg from '../assets/sirbull.svg';
+import sirMadamImg from '../assets/sirmadam.svg';
 
 type EarnedBadgePreview = {
   id: string;
